@@ -29,11 +29,21 @@ async function callOllama(prompt: string): Promise<unknown> {
       prompt,
       format: "json",
       stream: false,
+      options: { num_predict: 2048, temperature: 0, seed: 42 },
     }),
   });
   if (!res.ok) throw new Error(`Ollama error: ${res.status}`);
   const data = await res.json();
-  return JSON.parse(data.response);
+  // Strip <think>...</think> blocks that Qwen3 emits before the JSON
+  const raw = data.response.replace(/<think>[\s\S]*?<\/think>/g, "").trim();
+  return JSON.parse(raw);
+}
+
+function hasExplanatoryComments(code: string): boolean {
+  return code.split("\n").some((line) => {
+    const trimmed = line.trim();
+    return trimmed.startsWith("#") && trimmed.length > 1;
+  });
 }
 
 export async function evaluateStudentCode(
@@ -46,16 +56,48 @@ export async function evaluateStudentCode(
 PROBLEM DESCRIPTION:
 ${problemDescription}
 
-TEACHER'S REFERENCE SOLUTION:
+EXAMPLE SOLUTION (one valid approach — not the only correct answer):
 ${teacherSolution}
 
 STUDENT'S SUBMISSION (CODE & COMMENTS):
 ${studentCode}
 
-EVALUATION INSTRUCTIONS:
-1. Compare the student's solution against the teacher's reference solution and your own physical knowledge. Check for correct physics modeling and correct JavaScript numerical implementation.
-2. Carefully read the student's inline comments. If there are NO comments explaining the thought process or physical reasoning, you MUST immediately deduct points from reasoningScore — a submission with no explanatory comments cannot score above 40 in reasoning.
-3. If you deduct points in ANY category, you MUST explicitly state the reason why in the JSON response.
+GRADING PROCESS — follow these steps in order:
+
+STEP 1: Evaluate the student's code on its own merits, ignoring the example solution entirely.
+  Ask yourself: "Is this code physically correct? Does it correctly solve the problem as described?"
+  If yes → physicsScore = 100, codingScore = 100. Stop here for these two categories.
+  Only proceed to Step 2 if you found a concrete error in Step 1.
+
+STEP 2: Use the example solution only to check if the student missed a required physical effect.
+  The example solution is ONE valid approach, not the only valid approach.
+  Do NOT deduct because the student used a different method, different variable names, or different code structure.
+  Only deduct if the student is missing physics that the problem explicitly requires.
+
+PHYSICS SCORE — deduct only for these specific errors (use any integer in the range):
+  -30 to -40: completely wrong physical model
+  -20 to -30: key formula is wrong
+  -10 to -20: required physical effect is missing
+  -8  to -15: wrong physical constant
+  -5  to -12: unit error
+  -2  to -8:  minor approximation that slightly affects result
+  NEVER deduct for: different but correct approach, variable names, code style
+
+CODING SCORE — deduct only for these specific errors (use any integer in the range):
+  -25 to -35: code produces numerically wrong results
+  -15 to -25: wrong numerical method that causes significant error
+  -8  to -18: step size or loop bounds cause significant numerical error
+  -5  to -12: off-by-one or incorrect loop ranges
+  -2  to -8:  unnecessary complexity with no effect on correctness
+  NEVER deduct for: different but valid implementation, style, structure
+
+REASONING SCORE — deduct only for these:
+  -30 to -40: zero comments in the submission
+  -15 to -30: comments only describe what the code does, not why
+  -5  to -15: comments explain some reasoning but miss key physical assumptions
+  0 deductions: comments clearly explain physical reasoning and assumptions
+
+RULE: Every deduction MUST name the exact line item from above. If you cannot name one, do not deduct. Set deductionReasons to null for any category that scores 100.
 
 RETURN EXACTLY THIS JSON FORMAT (No markdown formatting, just raw JSON):
 {
@@ -63,7 +105,7 @@ RETURN EXACTLY THIS JSON FORMAT (No markdown formatting, just raw JSON):
   "codingScore": <number 0-100, 40% weight>,
   "reasoningScore": <number 0-100, 20% weight>,
   "grade": <overall score: physicsScore * 0.4 + codingScore * 0.4 + reasoningScore * 0.2>,
-  "feedback": "<String: 2-3 sentences of overall feedback. If grade is below 70, also include concrete actionable steps the student should take to improve>",
+  "feedback": "<String: 2-3 sentences of overall feedback. If grade is below 70, include concrete actionable steps to improve>",
   "deductionReasons": {
     "physics": "<String explaining physics deductions, or null if 100>",
     "coding": "<String explaining JS/numerical deductions, or null if 100>",
@@ -77,7 +119,20 @@ RETURN EXACTLY THIS JSON FORMAT (No markdown formatting, just raw JSON):
     try {
       const raw = await callOllama(prompt);
       const parsed = EvalSchema.safeParse(raw);
-      if (parsed.success) return parsed.data;
+      if (parsed.success) {
+        const result = parsed.data;
+        // Only override reasoning when there are zero comments — otherwise use LLM's score
+        if (!hasExplanatoryComments(studentCode)) {
+          result.reasoningScore = 50;
+        }
+        // Always recalculate grade from components so the LLM can't fudge it
+        result.grade = Math.round(
+          result.physicsScore * 0.4 +
+          result.codingScore * 0.4 +
+          result.reasoningScore * 0.2
+        );
+        return result;
+      }
       lastError = new Error(`Zod validation failed: ${parsed.error.message}`);
     } catch (err) {
       lastError = err as Error;
