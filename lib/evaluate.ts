@@ -39,11 +39,18 @@ async function callOllama(prompt: string): Promise<unknown> {
   return JSON.parse(raw);
 }
 
-function hasExplanatoryComments(code: string): boolean {
-  return code.split("\n").some((line) => {
+type CommentLevel = "none" | "blocks-only" | "inline";
+
+function getCommentLevel(code: string): CommentLevel {
+  const lines = code.split("\n");
+  const hasInline = lines.some((line) => {
     const trimmed = line.trim();
-    return trimmed.startsWith("#") && trimmed.length > 1;
+    return trimmed.startsWith("#") && trimmed.length > 2;
   });
+  if (hasInline) return "inline";
+  const hasBlocks = code.includes("'''") || code.includes('"""');
+  if (hasBlocks) return "blocks-only";
+  return "none";
 }
 
 export async function evaluateStudentCode(
@@ -51,65 +58,87 @@ export async function evaluateStudentCode(
   teacherSolution: string,
   studentCode: string
 ): Promise<EvalResult> {
-  const prompt = `You are an expert physics instructor and code reviewer. Evaluate the following student JavaScript submission for a physics problem.
+  const prompt = `You are an expert physics instructor evaluating a student's Python solution to a physics simulation problem.
 
 PROBLEM DESCRIPTION:
 ${problemDescription}
 
-EXAMPLE SOLUTION (one valid approach — not the only correct answer):
+TEACHER'S SOLUTION (reference — one valid approach, not the only correct answer):
 ${teacherSolution}
 
 STUDENT'S SUBMISSION (CODE & COMMENTS):
 ${studentCode}
 
-GRADING PROCESS — follow these steps in order:
+═══════════════════════════════════════════
+EVALUATION PROCESS — follow these steps in order
+═══════════════════════════════════════════
 
-STEP 1: Evaluate the student's code on its own merits, ignoring the example solution entirely.
-  Ask yourself: "Is this code physically correct? Does it correctly solve the problem as described?"
-  If yes → physicsScore = 100, codingScore = 100. Stop here for these two categories.
-  Only proceed to Step 2 if you found a concrete error in Step 1.
+STEP 1 — PHYSICS SCORE: Evaluate the student's physics independently.
+  Ask: "Does this code apply the correct physical laws, forces, and model for this problem?"
+  If yes → physicsScore = 100. Use the teacher's solution only to identify which physics the problem requires.
 
-STEP 2: Use the example solution only to check if the student missed a required physical effect.
-  The example solution is ONE valid approach, not the only valid approach.
-  Do NOT deduct because the student used a different method, different variable names, or different code structure.
-  Only deduct if the student is missing physics that the problem explicitly requires.
+  Deductions (use any integer in the given range):
+  -30 to -40: completely wrong physical model or approach
+  -20 to -30: key formula is incorrect
+  -10 to -20: a required physical effect is missing
+  -8  to -15: wrong physical constant value
+  -5  to -12: unit handling error
+  -2  to -8:  minor approximation that slightly affects the result
+  NEVER deduct for: different but correct approach, variable naming, code style
 
-PHYSICS SCORE — deduct only for these specific errors (use any integer in the range):
-  -30 to -40: completely wrong physical model
-  -20 to -30: key formula is wrong
-  -10 to -20: required physical effect is missing
-  -8  to -15: wrong physical constant
-  -5  to -12: unit error
-  -2  to -8:  minor approximation that slightly affects result
-  NEVER deduct for: different but correct approach, variable names, code style
+STEP 2 — CODING SCORE: Evaluate the Python implementation independently.
+  Ask: "Does this code produce correct results using a valid numerical method?"
+  If yes → codingScore = 100 EXACTLY. Not 99, not 98 — 100.
 
-CODING SCORE — deduct only for these specific errors (use any integer in the range):
+  Only deduct for REAL implementation errors:
   -25 to -35: code produces numerically wrong results
-  -15 to -25: wrong numerical method that causes significant error
+  -15 to -25: wrong numerical method causing significant error
   -8  to -18: step size or loop bounds cause significant numerical error
-  -5  to -12: off-by-one or incorrect loop ranges
-  -2  to -8:  unnecessary complexity with no effect on correctness
-  NEVER deduct for: different but valid implementation, style, structure
+  -5  to -12: off-by-one errors or incorrect loop ranges
+  NEVER deduct for: different but valid implementation, style, variable naming, data structure choice, step size choice, memory usage, performance
 
-REASONING SCORE — deduct only for these:
-  -30 to -40: zero comments in the submission
-  -15 to -30: comments only describe what the code does, not why
-  -5  to -15: comments explain some reasoning but miss key physical assumptions
-  0 deductions: comments clearly explain physical reasoning and assumptions
+STEP 3 — REASONING SCORE: Compare the student's comments to the teacher's solution comments.
+  The teacher's comments are the reference for what a complete explanation looks like for this problem.
+  Evaluate whether the student addresses the same physical concepts — exact wording does not matter.
 
-RULE: Every deduction MUST name the exact line item from above. If you cannot name one, do not deduct. Set deductionReasons to null for any category that scores 100.
+  Comments include: # single-line, """docstrings""", '''block strings'''.
 
-RETURN EXACTLY THIS JSON FORMAT (No markdown formatting, just raw JSON):
+  For each of the 5 aspects below, mark COVERED if the student's comments address it in any form:
+  1. Physical assumptions — mentions the model's assumptions (e.g. arbitrary constants, simplified model, unit mass)
+  2. Forces and interactions — explains forces, acceleration, or Newton's law (e.g. F=ma, specific forces acting)
+  3. Mathematical model — explains the equations or formulas being implemented
+  4. Numerical method — names or explains the integration method (e.g. Forward Euler) or justifies the time step
+  5. Stopping condition — explains when/why the simulation ends (e.g. sign change in vy, t_max reached, condition detected)
+
+  Be INCLUSIVE: if the student mentions the concept even briefly, count it as covered. When in doubt, count it.
+
+  EXACT SCORES — assign the score that matches the number of aspects covered. These are fixed values, not ranges:
+  5 aspects covered → reasoningScore = 100
+  4 aspects covered → reasoningScore = 80
+  3 aspects covered → reasoningScore = 60
+  2 aspects covered → reasoningScore = 40
+  1 aspect  covered → reasoningScore = 20
+  0 aspects covered → reasoningScore = 0
+
+═══════════════════════════════════════════
+RULES
+═══════════════════════════════════════════
+- A correct solution that differs from the teacher's still gets 100 for physics and coding.
+- Every deduction must name the exact line item from Step 1 or Step 2. If you cannot name a specific line item, do not deduct.
+- Set deductionReasons to null for any category that scores 100.
+- If grade is below 70, the feedback must include concrete actionable steps to improve.
+
+RETURN EXACTLY THIS JSON FORMAT (no markdown, no code blocks, raw JSON only):
 {
-  "physicsScore": <number 0-100, 40% weight>,
-  "codingScore": <number 0-100, 40% weight>,
-  "reasoningScore": <number 0-100, 20% weight>,
-  "grade": <overall score: physicsScore * 0.4 + codingScore * 0.4 + reasoningScore * 0.2>,
-  "feedback": "<String: 2-3 sentences of overall feedback. If grade is below 70, include concrete actionable steps to improve>",
+  "physicsScore": <number 0-100>,
+  "codingScore": <number 0-100>,
+  "reasoningScore": <number 0-100>,
+  "grade": <physicsScore * 0.4 + codingScore * 0.4 + reasoningScore * 0.2>,
+  "feedback": "<2-3 sentences of overall feedback, including what to improve if grade < 70>",
   "deductionReasons": {
-    "physics": "<String explaining physics deductions, or null if 100>",
-    "coding": "<String explaining JS/numerical deductions, or null if 100>",
-    "reasoning": "<String explaining missing reasoning in comments, or null if 100>"
+    "physics": "<specific deduction reason, or null if 100>",
+    "coding": "<specific deduction reason, or null if 100>",
+    "reasoning": "<which of the 5 aspects were missing, or null if 100>"
   }
 }`;
 
@@ -121,10 +150,14 @@ RETURN EXACTLY THIS JSON FORMAT (No markdown formatting, just raw JSON):
       const parsed = EvalSchema.safeParse(raw);
       if (parsed.success) {
         const result = parsed.data;
-        // Only override reasoning when there are zero comments — otherwise use LLM's score
-        if (!hasExplanatoryComments(studentCode)) {
-          result.reasoningScore = 50;
+        // Enforce reasoning caps based on comment level
+        const commentLevel = getCommentLevel(studentCode);
+        if (commentLevel === "none") {
+          result.reasoningScore = 0;
+        } else if (commentLevel === "blocks-only") {
+          result.reasoningScore = Math.min(result.reasoningScore, 25);
         }
+        // "inline" → trust LLM's score
         // Always recalculate grade from components so the LLM can't fudge it
         result.grade = Math.round(
           result.physicsScore * 0.4 +
