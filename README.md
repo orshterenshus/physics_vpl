@@ -227,6 +227,55 @@ When a student clicks **Submit**:
 
 ---
 
+## Grading Examples (Q1 — Particle Trajectory)
+
+The table below shows the four reference examples from [`Q1 examples for grading.md`](Q1%20examples%20for%20grading.md), which demonstrate the full range of expected scores.
+
+| Example | Physics | Coding | Reasoning | **Final Grade** | Key issues |
+|---|---|---|---|---|---|
+| 1 — Perfect | 100 | 100 | 100 | **100** | None — correct formula, correct Euler, all 5 comment aspects |
+| 2 — Good | ~75 | 100 | 60 | **~82** | Sign error in `ay` formula; only 3/5 comment aspects |
+| 3 — Failing | ~45 | ~40 | 20 | **~38** | Constant acceleration (evaluated only at t=0); wrong distance formula; wrong stopping condition |
+| 4 — Very poor | ~45 | ~50 | 0 | **~38** | Wrong physical model (`-ω²x` instead of given formula); wrong Euler order; float equality check that never triggers; no comments |
+
+### Reasoning aspect checklist (for Q1)
+
+| Aspect | What to look for in the comments |
+|---|---|
+| 1. Physical assumptions | Mentions units of A (m/s) and ω (rad/s), or notes values are arbitrary |
+| 2. Forces and interactions | References Newton's second law, F=ma, or explains what the acceleration represents |
+| 3. Mathematical model | Writes out or references the ax / ay equations |
+| 4. Numerical method | Names "Forward Euler" and/or explains the v and x update rules |
+| 5. Stopping condition | Explains that vy=0 means tangent parallel to x-axis; describes the sign-change detection |
+
+> Full annotated code for all four examples is in [`Q1 examples for grading.md`](Q1%20examples%20for%20grading.md).
+
+---
+
+## Physics Deduction Reference
+
+| Error | Points deducted from Physics |
+|---|---|
+| Completely wrong physical model | 30 – 40 |
+| Key formula incorrect | 20 – 30 |
+| Required physical effect missing | 10 – 20 |
+| Wrong physical constant | 8 – 15 |
+| Unit handling error | 5 – 12 |
+| Minor approximation with small effect | 2 – 8 |
+
+## Coding Deduction Reference
+
+| Error | Points deducted from Coding |
+|---|---|
+| Code produces numerically wrong results | 25 – 35 |
+| Wrong numerical method causing significant error | 15 – 25 |
+| Step size or loop bounds cause significant numerical error | 8 – 18 |
+| Off-by-one or incorrect loop ranges | 5 – 12 |
+
+> Style, variable naming, data structure choice, and step size choice **never** cause coding deductions.
+
+---
+
 ## Environment Variables Reference
 
 | Variable | Description |
