@@ -120,13 +120,34 @@ STEP 3 — REASONING SCORE: Compare the student's comments to the teacher's solu
   1 aspect  covered → reasoningScore = 20
   0 aspects covered → reasoningScore = 0
 
+STEP 4 — DETAILED FEEDBACK: physicsScore, codingScore, and reasoningScore are now FINAL from Steps 1-3.
+  Step 4 only explains those already-decided scores — it must never change them, and it must never imply a
+  deduction or a missing aspect that Steps 1-3 did not already identify.
+  Write feedback the student can act on, using only the scores and deductions already produced in Steps 1-3.
+  Structure it as 4 short parts, in this order, as ONE string (use \n\n between parts):
+  1. Physics: one sentence on what was correct. If physicsScore < 100, also state exactly what was wrong and the
+     correct physical law/formula/effect to use instead (reference the specific deduction reason from Step 1).
+     If physicsScore == 100, just confirm it was correct — do not search for issues.
+  2. Coding: one sentence on what was correct. If codingScore < 100, also state exactly which part of the
+     implementation produced wrong results or used an invalid method, and what change would fix it (reference
+     the specific deduction reason from Step 2). If codingScore == 100, just confirm it was correct.
+  3. Reasoning: if reasoningScore < 100, name only the aspect(s) from the 5-aspect list that Step 3 actually marked
+     as not covered (not just "some are missing" — name them, e.g. "Numerical method" and "Stopping condition"),
+     and give a one-line example of what a comment covering that aspect could say for this problem. If
+     reasoningScore == 100, all 5 aspects were covered — say so, and do not name any aspect as missing.
+  4. Priority: one sentence naming the single highest-impact thing to fix first to raise the grade the most. If all
+     three scores are 100, say there is nothing left to fix.
+  If a category scored 100, say so briefly and move on — do not invent issues to fill space.
+  Be specific to THIS submission (cite variable/line behavior, not generic advice).
+
 ═══════════════════════════════════════════
 RULES
 ═══════════════════════════════════════════
 - A correct solution that differs from the teacher's still gets 100 for physics and coding.
 - Every deduction must name the exact line item from Step 1 or Step 2. If you cannot name a specific line item, do not deduct.
 - Set deductionReasons to null for any category that scores 100.
-- If grade is below 70, the feedback must include concrete actionable steps to improve.
+- The feedback must follow the STEP 4 structure regardless of the grade — detailed feedback is not just for grade < 70.
+- Steps 1-3 produce the final scores. Step 4 is explanation only and must never alter physicsScore, codingScore, or reasoningScore.
 
 RETURN EXACTLY THIS JSON FORMAT (no markdown, no code blocks, raw JSON only):
 {
@@ -134,7 +155,7 @@ RETURN EXACTLY THIS JSON FORMAT (no markdown, no code blocks, raw JSON only):
   "codingScore": <number 0-100>,
   "reasoningScore": <number 0-100>,
   "grade": <physicsScore * 0.4 + codingScore * 0.4 + reasoningScore * 0.2>,
-  "feedback": "<2-3 sentences of overall feedback, including what to improve if grade < 70>",
+  "feedback": "<the STEP 4 structured feedback: Physics / Coding / Reasoning / Priority, separated by \\n\\n>",
   "deductionReasons": {
     "physics": "<specific deduction reason, or null if 100>",
     "coding": "<specific deduction reason, or null if 100>",
