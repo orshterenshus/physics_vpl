@@ -124,21 +124,44 @@ STEP 4 — DETAILED FEEDBACK: physicsScore, codingScore, and reasoningScore are 
   Step 4 only explains those already-decided scores — it must never change them, and it must never imply a
   deduction or a missing aspect that Steps 1-3 did not already identify.
   Write feedback the student can act on, using only the scores and deductions already produced in Steps 1-3.
-  Structure it as 4 short parts, in this order, as ONE string (use \n\n between parts):
-  1. Physics: one sentence on what was correct. If physicsScore < 100, also state exactly what was wrong and the
+  The PROBLEM DESCRIPTION above may itself contain backslash LaTeX commands (e.g. \\omega, \\sin, \\hat{x}).
+  Ignore that formatting style completely when writing this feedback — never copy it. The rules below for how to
+  write math in the feedback (bold labels, plain-character formulas, literal Greek glyphs) apply regardless of how
+  the problem description happens to be formatted.
+  Structure it as 4 short parts, in this order, as ONE string. Each part starts with its bold-and-underlined label
+  on its own line (**<u>Physics:</u>**, **<u>Coding:</u>**, **<u>Reasoning:</u>**, **<u>Priority:</u>**), and parts
+  are separated by a blank line (use \n\n between parts, e.g.
+  "**<u>Physics:</u>** ...text...\n\n**<u>Coding:</u>** ...text...").
+  1. **<u>Physics:</u>** one sentence on what was correct. If physicsScore < 100, also state exactly what was wrong and the
      correct physical law/formula/effect to use instead (reference the specific deduction reason from Step 1).
      If physicsScore == 100, just confirm it was correct — do not search for issues.
-  2. Coding: one sentence on what was correct. If codingScore < 100, also state exactly which part of the
+  2. **<u>Coding:</u>** one sentence on what was correct. If codingScore < 100, also state exactly which part of the
      implementation produced wrong results or used an invalid method, and what change would fix it (reference
      the specific deduction reason from Step 2). If codingScore == 100, just confirm it was correct.
-  3. Reasoning: if reasoningScore < 100, name only the aspect(s) from the 5-aspect list that Step 3 actually marked
+  3. **<u>Reasoning:</u>** if reasoningScore < 100, name only the aspect(s) from the 5-aspect list that Step 3 actually marked
      as not covered (not just "some are missing" — name them, e.g. "Numerical method" and "Stopping condition"),
-     and give a one-line example of what a comment covering that aspect could say for this problem. If
+     and give a one-line example of what a comment covering that aspect could say for this problem. If quoting that
+     example, use single quotes (') around it, never double quotes (") — double quotes inside this JSON string
+     must be escaped as \" and that is not reliable here, so avoid needing the escape entirely. If
      reasoningScore == 100, all 5 aspects were covered — say so, and do not name any aspect as missing.
-  4. Priority: one sentence naming the single highest-impact thing to fix first to raise the grade the most. If all
-     three scores are 100, say there is nothing left to fix.
+  4. **<u>Priority:</u>** one sentence naming the single highest-impact thing to fix first to raise the grade the most. If all
+     three scores are 100, say there is nothing left to fix. Omit this part entirely if all three scores are 100.
   If a category scored 100, say so briefly and move on — do not invent issues to fill space.
+  Never use double quotes (") anywhere inside the feedback text itself (use single quotes ' instead) — this text
+  is a JSON string value and an unescaped " inside it breaks the JSON.
   Be specific to THIS submission (cite variable/line behavior, not generic advice).
+  Write any mathematical formula or equation using simple LaTeX, delimited with $...$ for inline math or $$...$$
+  for a standalone equation on its own line. Plain variable names in prose (e.g. "vy" or "dt") don't need LaTeX —
+  only actual formulas/equations do.
+  Because the output is a JSON string, backslash LaTeX commands (\sin, \cos, \theta, \omega, \cdot, \Delta, \text,
+  etc.) are FORBIDDEN — a backslash in a JSON string must be doubled or it corrupts the output, and that is not
+  reliable here. Also never write the bare word "text" followed by braces (e.g. never write "text{omega}") — with
+  no backslash that is not a command, it is just the literal letters t-e-x-t rendered as math variables next to
+  whatever is in the braces, producing garbage like "extomega". Build formulas only from plain characters that
+  need no backslash and no text{} wrapper: letters, digits, +, -, *, /, ^, _, (), and curly braces only for
+  grouping an exponent or subscript. The feedback string must contain zero backslash characters.
+  For omega, type the single character ω. For theta, type θ. For capital delta, type Δ.
+  Example: "$a_y = 2*A*ω*cos(ωt) - ω^2*A*t*sin(ωt)$"
 
 ═══════════════════════════════════════════
 RULES

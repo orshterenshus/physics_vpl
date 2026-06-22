@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import dynamic from "next/dynamic";
 import ReactMarkdown from "react-markdown";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
+import rehypeRaw from "rehype-raw";
 import { GraphPanel } from "./GraphPanel";
 import { IProblem, IParameter } from "@/models/Problem";
 import { useTheme } from "next-themes";
@@ -38,6 +39,32 @@ export function ProblemSolver({ problem }: Props) {
     codingScore: number | null;
     reasoningScore: number | null;
   } | null>(null);
+
+  const [panelWidth, setPanelWidth] = useState(380);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const resizing = useRef(false);
+
+  const startResize = useCallback(() => {
+    resizing.current = true;
+  }, []);
+
+  useEffect(() => {
+    const onMouseMove = (e: MouseEvent) => {
+      if (!resizing.current || !containerRef.current) return;
+      const left = containerRef.current.getBoundingClientRect().left;
+      const width = e.clientX - left;
+      setPanelWidth(Math.min(900, Math.max(280, width)));
+    };
+    const onMouseUp = () => {
+      resizing.current = false;
+    };
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseup", onMouseUp);
+    return () => {
+      document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("mouseup", onMouseUp);
+    };
+  }, []);
 
   const handleRun = useCallback(async () => {
     setRunning(true);
@@ -85,9 +112,10 @@ export function ProblemSolver({ problem }: Props) {
   }, [code, output, problem._id]);
 
   return (
-    <div className="flex h-[calc(100vh-53px)]">
+    <div ref={containerRef} className="flex h-[calc(100vh-53px)]">
       {/* Left panel: problem statement */}
-      <div className="w-[380px] flex-shrink-0 border-r border-gray-200 dark:border-gray-800 overflow-y-auto p-6 flex flex-col gap-6 bg-white dark:bg-gray-950">
+      <div style={{ width: panelWidth }}
+        className="flex-shrink-0 overflow-y-auto p-6 flex flex-col gap-6 bg-white dark:bg-gray-950">
         <div>
           <p className="text-xs text-gray-400 dark:text-gray-500 mb-1">
             Chapter {problem.chapter} · #{problem.problemNumber}
@@ -149,10 +177,20 @@ export function ProblemSolver({ problem }: Props) {
                 ))}
               </div>
             )}
-            <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">{submission.feedback}</p>
+            <div className="prose prose-gray dark:prose-invert prose-sm max-w-none [&_p]:leading-relaxed">
+              <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeRaw, rehypeKatex]}>
+                {submission.feedback}
+              </ReactMarkdown>
+            </div>
           </div>
         )}
       </div>
+
+      {/* Drag handle */}
+      <div
+        onMouseDown={startResize}
+        className="w-1 flex-shrink-0 cursor-col-resize bg-gray-200 dark:bg-gray-800 hover:bg-blue-400 dark:hover:bg-blue-500 transition-colors"
+      />
 
       {/* Right panel: editor + output */}
       <div className="flex-1 flex flex-col min-w-0">
