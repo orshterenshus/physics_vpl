@@ -161,6 +161,10 @@ STEP 4 — DETAILED FEEDBACK: physicsScore, codingScore, and reasoningScore are 
   need no backslash and no text{} wrapper: letters, digits, +, -, *, /, ^, _, (), and curly braces only for
   grouping an exponent or subscript. The feedback string must contain zero backslash characters.
   For omega, type the single character ω. For theta, type θ. For capital delta, type Δ.
+  Never write a unit vector with a hat accent (x-hat, y-hat) using any accent mark or combining character — KaTeX
+  cannot render those and it crashes the page. If you need to refer to a unit vector, write it as the plain word
+  "x_hat" or "y_hat" (no special character at all), or simply refer to "the x-component" / "the y-component" in
+  prose instead.
   Example: "$a_y = 2*A*ω*cos(ωt) - ω^2*A*t*sin(ωt)$"
 
 ═══════════════════════════════════════════
