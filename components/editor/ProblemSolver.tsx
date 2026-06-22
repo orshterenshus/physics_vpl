@@ -44,19 +44,34 @@ export function ProblemSolver({ problem }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const resizing = useRef(false);
 
+  const [outputHeight, setOutputHeight] = useState(224);
+  const editorColumnRef = useRef<HTMLDivElement>(null);
+  const resizingOutput = useRef(false);
+
   const startResize = useCallback(() => {
     resizing.current = true;
   }, []);
 
+  const startResizeOutput = useCallback(() => {
+    resizingOutput.current = true;
+  }, []);
+
   useEffect(() => {
     const onMouseMove = (e: MouseEvent) => {
-      if (!resizing.current || !containerRef.current) return;
-      const left = containerRef.current.getBoundingClientRect().left;
-      const width = e.clientX - left;
-      setPanelWidth(Math.min(900, Math.max(280, width)));
+      if (resizing.current && containerRef.current) {
+        const left = containerRef.current.getBoundingClientRect().left;
+        const width = e.clientX - left;
+        setPanelWidth(Math.min(900, Math.max(280, width)));
+      }
+      if (resizingOutput.current && editorColumnRef.current) {
+        const bottom = editorColumnRef.current.getBoundingClientRect().bottom;
+        const height = bottom - e.clientY;
+        setOutputHeight(Math.min(700, Math.max(120, height)));
+      }
     };
     const onMouseUp = () => {
       resizing.current = false;
+      resizingOutput.current = false;
     };
     document.addEventListener("mousemove", onMouseMove);
     document.addEventListener("mouseup", onMouseUp);
@@ -193,7 +208,7 @@ export function ProblemSolver({ problem }: Props) {
       />
 
       {/* Right panel: editor + output */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div ref={editorColumnRef} className="flex-1 flex flex-col min-w-0">
         <div className="flex-1 min-h-0">
           <MonacoEditor
             height="100%"
@@ -211,7 +226,14 @@ export function ProblemSolver({ problem }: Props) {
           />
         </div>
 
-        <div className="h-56 border-t border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-950 flex flex-col">
+        {/* Vertical drag handle */}
+        <div
+          onMouseDown={startResizeOutput}
+          className="h-1 flex-shrink-0 cursor-row-resize bg-gray-200 dark:bg-gray-800 hover:bg-blue-400 dark:hover:bg-blue-500 transition-colors"
+        />
+
+        <div style={{ height: outputHeight }}
+          className="flex-shrink-0 border-t border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-950 flex flex-col">
           <div className="flex items-center justify-between px-4 py-2 border-b border-gray-200 dark:border-gray-800">
             <span className="text-xs text-gray-400 dark:text-gray-500 font-mono">Output</span>
             <div className="flex gap-2">
