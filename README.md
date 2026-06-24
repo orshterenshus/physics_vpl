@@ -7,10 +7,13 @@ A web application for physics courses where students write Python code to solve 
 ## Features
 
 - **In-browser Python editor** (Monaco) with live code execution and graph output
+- **Resizable layout** — drag to resize the problem panel width and the output panel height to fit your workflow
 - **LLM-powered grading** via a local Ollama model — evaluates three independent categories
+- **Structured, LaTeX-rendered feedback** — bold, underlined section labels (Physics / Coding / Reasoning / Priority) with inline math rendered through KaTeX
 - **LaTeX problem statements** rendered with KaTeX, supporting full mathematical notation
 - **Role-based access** — Admin, Teacher, and Student dashboards
 - **Submission history** with per-category score breakdown and actionable feedback
+- **Teacher submissions table** with an expandable row per submission to view the full LLM feedback inline, without leaving the table
 - **Dark / light theme**
 
 ---
@@ -51,7 +54,7 @@ The final grade is calculated programmatically from the three component scores �
 | LLM | Ollama (local, any compatible model) |
 | Code editor | Monaco Editor |
 | Graphs | Recharts |
-| Math rendering | React Markdown + KaTeX |
+| Math rendering | React Markdown + `remark-math` + `rehype-katex` + `rehype-raw` (for `<u>` underline support in feedback) |
 | Code execution | Python (server-side via `child_process.spawn`) |
 | Validation | Zod |
 
@@ -144,9 +147,11 @@ physics_vpl/
 │   └── login/            # Email magic-code login page
 ├── components/
 │   ├── editor/
-│   │   ├── ProblemSolver.tsx   # Main student view: editor + run + submit
+│   │   ├── ProblemSolver.tsx   # Main student view: resizable editor + run + submit
 │   │   ├── ProblemEditor.tsx   # Teacher problem creation/editing form
 │   │   └── GraphPanel.tsx      # Recharts graph output panel
+│   ├── teacher/
+│   │   └── SubmissionsTable.tsx   # Submissions table with expandable per-row feedback view
 │   └── ui/               # Theme toggle, sign-out button
 ├── lib/
 │   ├── evaluate.ts       # LLM evaluation engine (Ollama integration + grading logic)
@@ -176,7 +181,8 @@ physics_vpl/
 ### Teacher
 - Create and edit problems with LaTeX descriptions, starter code, and a reference solution
 - Add evaluation hints that guide the LLM grader
-- View all student submissions and grades
+- View all graded student submissions, with score breakdown per category — submissions still pending grading are excluded from this view
+- Click the **+** at the end of a submission row to expand it and read the full structured LLM feedback inline
 
 ### Admin
 - All teacher permissions
@@ -224,6 +230,22 @@ When a student clicks **Submit**:
 - No comments at all → reasoning score forced to 0
 - Only block comments (`"""..."""`) → reasoning score capped at 25
 - Inline `#` comments → LLM score is trusted
+
+### Feedback format
+
+The feedback text returned by the LLM is structured into four labelled parts, each on its own bold, underlined heading, with math written in plain-character LaTeX (`$...$`) so it renders cleanly through KaTeX:
+
+```
+**<u>Physics:</u>** ...
+**<u>Coding:</u>** ...
+**<u>Reasoning:</u>** ...
+**<u>Priority:</u>** ...
+```
+
+To keep this reliable with a small local model emitting constrained JSON, the prompt forbids a few patterns that are known to break either JSON parsing or KaTeX rendering:
+- No backslash LaTeX commands (`\sin`, `\omega`, `\text{...}`) — a stray unescaped backslash corrupts the JSON string. Greek letters are written as literal Unicode glyphs (ω, θ, Δ) instead.
+- No `text{...}` wrapper without a backslash (renders as garbled adjacent letters in KaTeX).
+- No accent/combining characters for unit-vector "hat" notation (e.g. x̂) — KaTeX throws a parse error on malformed accents, which previously left submissions stuck on "Pending" in the UI even though grading had completed successfully server-side.
 
 ---
 
