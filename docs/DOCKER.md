@@ -6,7 +6,9 @@ The one thing this **can't** fully paper over is the LLM model choice: different
 
 ## Where to run these commands
 
-Every command on this page (`docker compose up`, `docker compose logs ...`, etc.) goes in a **regular terminal on your own machine** — PowerShell, Command Prompt, or Git Bash on Windows, Terminal on macOS/Linux. Open it and `cd` into the folder where you cloned the project, since `docker-compose.yml` lives there and `docker compose` needs to run from that folder.
+Every command on this page (`docker compose up`, `docker compose logs ...`, etc.) goes in a **regular terminal on your own machine** — PowerShell, Command Prompt, or Git Bash on Windows, Terminal on macOS/Linux. Open it and `cd` into the folder where you cloned the project first.
+
+This isn't a one-time thing — **every single `docker compose ...` command on this page must be executed while your terminal's current directory is that project folder** (the one containing `docker-compose.yml`), not just the first one. If you open a new terminal window/tab later, or `cd` somewhere else in between, `cd` back into the project folder before running the next `docker compose` command — otherwise it won't find `docker-compose.yml` and will either fail outright or (if you have other compose projects) target the wrong one entirely.
 
 This is **not** the same as the terminal *inside* Docker Desktop's UI (the `>_` "Exec" button you get by clicking on a running container). That one opens a shell *inside one specific container* — useful for poking around inside it directly (e.g. running `mongosh` by hand), but `docker compose` itself isn't installed inside any container; it's a tool on your host machine that starts and orchestrates all of them from outside. Don't run the commands below in that container Exec terminal — they won't work there.
 
