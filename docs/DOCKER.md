@@ -20,7 +20,11 @@ cd physics_vpl
 cp .env.example .env
 ```
 
-Open `.env` and set `AUTH_SECRET` to a random string (e.g. run `openssl rand -base64 32` and paste the result in). Leave `OLLAMA_MODEL` as the default unless you know your machine has a strong GPU (see [Choosing a model](#choosing-a-model) below).
+Open `.env` and set:
+- `AUTH_SECRET` to a random string (e.g. run `openssl rand -base64 32` and paste the result in)
+- `ADMIN_PASSWORD` to whatever you want your admin password to be (this becomes your real, reusable login, set up automatically below)
+
+Leave `OLLAMA_MODEL` as the default unless you know your machine has a strong GPU (see [Choosing a model](#choosing-a-model) below).
 
 ```bash
 docker compose up -d --build
@@ -32,7 +36,7 @@ First run will take a while — it builds the app image, downloads the `mongo` a
 docker compose logs -f ollama-pull
 ```
 
-The example problems (Particle Trajectory, Bouncing Ball, etc.) are inserted automatically by the `seed` service, and a first admin account is created automatically by the `bootstrap-admin` service — neither needs a manual command. Get the login code with:
+The example problems (Particle Trajectory, Bouncing Ball, etc.) are inserted automatically by the `seed` service, and a first admin account is created automatically by the `bootstrap-admin` service — neither needs a manual command. Its sign-in details come straight from `.env`: `ADMIN_EMAIL` and `ADMIN_PASSWORD`. Confirm it worked with:
 
 ```bash
 docker compose logs bootstrap-admin
@@ -43,16 +47,17 @@ which prints something like:
 ```
 ========================================================
 First admin account created: Admin <admin@example.com>
-LOGIN CODE: A92A4CFC
-Go to http://localhost:3000/login and enter this code.
+Sign in at http://localhost:3000/login using "Admin? Sign in
+with email & password" with that email and the ADMIN_PASSWORD
+you set in .env.
 ========================================================
 ```
 
-This code logs you in as **admin** (the highest of the three roles — `student` / `teacher` / `admin`), not "teacher." Admin includes every teacher capability (creating/editing problems, viewing all submissions) plus user management, so you can do everything a teacher can right away, and also create teacher and student accounts for everyone else from the `/admin` page.
+This account is **admin** (the highest of the three roles — `student` / `teacher` / `admin`), not "teacher." Admin includes every teacher capability (creating/editing problems, viewing all submissions) plus user management, so you can do everything a teacher can right away, and also create teacher, student, and additional admin accounts from the `/admin` page.
 
-Open [http://localhost:3000/login](http://localhost:3000/login), paste in that code, and you're in. It's one-time use — the moment you log in, use the `/admin` page to create every other account (and your own, with a real name/email, if you want — the auto-created one is just a generic placeholder admin).
+Open [http://localhost:3000/login](http://localhost:3000/login), click "Admin? Sign in with email & password," and sign in with `ADMIN_EMAIL`/`ADMIN_PASSWORD` from `.env`. Unlike student/teacher login codes, this doesn't expire on first use — log in as many times as you want with the same password. Change it any time from the Users page once you're in ("Set new password"), including for your own account.
 
-If you ever re-run `docker compose up` after an admin already exists, `bootstrap-admin`'s logs will just say so and exit — it won't overwrite anything or generate a new code at that point (see [Common commands](#common-commands) for how to look up an existing code).
+If you ever re-run `docker compose up` after an admin already exists, `bootstrap-admin`'s logs will just say so and exit — it won't create a second account or touch the existing one (see [Locked out?](#locked-out) if you need to reset a password instead).
 
 ## What's actually running
 
@@ -65,7 +70,7 @@ If you ever re-run `docker compose up` after an admin already exists, `bootstrap
 | `ollama` | Official `ollama/ollama` image — the actual LLM inference server | `http://localhost:11434` (exposed mainly so you can run `ollama` CLI commands against it directly if you want) |
 | `ollama-pull` | One-shot — runs once, downloads the model named in `OLLAMA_MODEL`, then exits | — |
 | `seed` | One-shot — runs once, inserts the example problems, then exits. Safe to re-run (it clears those chapters first, so it never duplicates) | — |
-| `bootstrap-admin` | One-shot — waits for `app` to be healthy, then creates the first admin account and prints its login code to its own logs | — |
+| `bootstrap-admin` | One-shot — waits for `app` to be healthy, then creates the first admin account from `ADMIN_NAME`/`ADMIN_EMAIL`/`ADMIN_PASSWORD` in `.env` | — |
 
 Two named volumes (`mongo_data`, `ollama_data`) persist the database and the downloaded model(s) across restarts, so you only download the model once.
 
@@ -102,21 +107,39 @@ docker compose logs -f app      # tail the Next.js app's logs
 docker compose down             # stop everything (data is preserved in volumes)
 docker compose down -v          # stop everything AND delete the database + downloaded models
 
-# Look up a user's current login code directly (e.g. if you lost it before logging in):
+# Look up every user's role and (for students/teachers) current login code:
 docker compose exec mongo mongosh physics-lab --quiet --eval \
   'db.users.find({}, {name:1, email:1, role:1, loginCode:1}).forEach(u => print(JSON.stringify(u)))'
 ```
 
-## Locked out? (code already used, signed out, nobody can log in)
+## Locked out?
 
-Login codes are one-time use — the instant one is used, it's cleared from the database. There's no "forgot code" / "resend" flow in the UI, and `/api/setup` permanently refuses to run again once *any* user exists (even if that user got locked out and there's no other admin to issue them a new code through `/admin`). If that happens to everyone at once, the fix is to set a fresh code directly in the database — this is exactly what `bootstrap-admin` and the `/admin` page do under the hood, just done manually this once:
+Recall: students/teachers use a one-time **code**; admins use an **email + password** that doesn't expire on use (deliberately — an admin locked out with nobody else around to issue them a fresh code would otherwise have no way back in at all). What "locked out" means — and the fix — differs depending on which one got stuck.
+
+### A student/teacher's code was already used (and no admin is around to issue a new one)
+
+Their `loginCode` is `null` in the database the instant they log in once. Normally an admin would click "New code" for them on the Users page — but if nobody can currently log in to do that, set one directly:
 
 ```bash
 docker compose exec mongo mongosh physics-lab --quiet --eval \
   "db.users.updateOne({email: 'the-locked-out-user@example.com'}, {\$set: {loginCode: 'NEWCODE1'}})"
 ```
 
-Replace the email with the actual account's email (look it up first with the command above if you're not sure), and `NEWCODE1` with anything you want (it gets uppercased automatically on login regardless of what case you type here). Then log in with that code at `/login` like normal.
+Replace the email, and `NEWCODE1` with anything you want (it's uppercased automatically on login regardless of case). Then log in with it at `/login` like normal.
+
+### An admin can't log in (forgot the password, or it was never set correctly)
+
+A password can't be reset with a plain `mongosh $set` the way a code can — it's stored as a bcrypt hash, not the plaintext, so there's no "just set the field to something" shortcut. Use the dedicated reset script instead, which reuses the same image `bootstrap-admin` is already built from:
+
+```bash
+docker compose run --rm bootstrap-admin node scripts/docker-reset-admin-password.mjs you@example.com a-new-password
+```
+
+This works even if `bootstrap-admin` already ran and exited earlier — `docker compose run` starts a fresh one-off container from that service's image regardless. If you're not sure of the email, look it up first with the command above (`role: "admin"` rows).
+
+### Nobody — not even one user — exists at all
+
+This shouldn't normally happen once `bootstrap-admin` has run successfully once, but if the database was wiped (`docker compose down -v`) without a subsequent `docker compose up`, just bring the stack up again — `bootstrap-admin` creates the first admin automatically from `ADMIN_EMAIL`/`ADMIN_PASSWORD` in `.env`.
 
 ## Troubleshooting
 

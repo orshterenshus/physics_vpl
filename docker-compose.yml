@@ -87,9 +87,8 @@ services:
       timeout: 5s
       retries: 30
 
-  # One-shot job: creates the first admin account automatically and prints its
-  # one-time login code to this service's logs (`docker compose logs bootstrap-admin`).
-  # Safe to re-run — if an admin already exists, it just logs that and exits.
+  # One-shot job: creates the first admin account automatically (email + password
+  # from .env). Safe to re-run — if an admin already exists, it just logs that and exits.
   bootstrap-admin:
     build:
       context: .
@@ -99,8 +98,10 @@ services:
         condition: service_healthy
     environment:
       - APP_URL=http://app:3000
+      - MONGODB_URI=mongodb://mongo:27017/physics-lab
       - ADMIN_NAME=${ADMIN_NAME:-Admin}
       - ADMIN_EMAIL=${ADMIN_EMAIL:-admin@example.com}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:?Set ADMIN_PASSWORD in .env — see .env.example}
     command: ["node", "scripts/docker-bootstrap-admin.mjs"]
     restart: "no"
 

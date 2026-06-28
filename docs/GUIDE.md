@@ -295,16 +295,12 @@ With the dev server running, in a separate terminal:
 ```bash
 curl -X POST http://localhost:3000/api/setup \
   -H "Content-Type: application/json" \
-  -d "{\"name\": \"Your Name\", \"email\": \"you@example.com\"}"
+  -d "{\"name\": \"Your Name\", \"email\": \"you@example.com\", \"password\": \"choose-a-real-password\"}"
 ```
 
-This only works **once** — the moment any user exists in the database, this endpoint permanently refuses (`403 Setup already complete`). The response looks like:
+This only works **once** — the moment any user exists in the database, this endpoint permanently refuses (`403 Setup already complete`).
 
-```json
-{"message": "Admin created", "code": "A4K9PX3M"}
-```
-
-Go to `http://localhost:3000/login`, paste in that code, and you're signed in as an admin. From here on, use the `/admin` Users page to create every other account (teachers, students) — see [Authentication](#authentication-in-detail) for exactly how that works.
+Go to `http://localhost:3000/login`, click "Admin? Sign in with email & password," and sign in with that email and password. Unlike student/teacher login codes, this isn't one-time — the same password keeps working across logins, same as any normal account. From here on, use the `/admin` Users page to create every other account (teachers, students, or more admins) — see [Authentication](#authentication-in-detail) for exactly how both login flows work.
 
 ### Step 9 — (Optional) Seed example problems
 
@@ -320,41 +316,63 @@ You're now fully running. Create a student account from `/admin`, log in as that
 
 ## Authentication, in detail
 
-This is worth its own section because the name "magic code" (used loosely elsewhere) can be misread as "magic link sent by email" — that is **not** what this app does. There is no email-sending integration anywhere in the codebase (an old `AUTH_RESEND_KEY` env var from an earlier design has been removed; it was never wired up to anything).
+This is worth its own section because the name "magic code" (used loosely elsewhere) can be misread as "magic link sent by email" — that is **not** what this app does. There is no email-sending integration anywhere in the codebase.
 
-The real flow:
+There are two different login mechanisms, by design, for two different needs: students/teachers are invite-only accounts a teacher hands out, so a disposable one-time code fits; an admin is the one person who needs to be able to log back in indefinitely with nobody else around to help them, so a real password fits better there. Both are handled by the same `Credentials` provider in `lib/auth.ts`, which branches on which field is present:
 
-1. **Code creation.** An admin (or teacher) fills out the "Add User" form in `/admin` (or, for the very first account, hits `POST /api/setup`). Server-side, `lib/generateCode.ts` runs:
+```typescript
+Credentials({
+  credentials: { code: {}, email: {}, password: {} },
+  async authorize(credentials) {
+    await connectDB();
+
+    // Admin login: email + password.
+    const password = credentials?.password as string | undefined;
+    if (password) {
+      const email = (credentials?.email as string | undefined)?.trim().toLowerCase();
+      if (!email) return null;
+      const user = await User.findOne({ email, role: "admin" });
+      if (!user?.passwordHash) return null;
+      const valid = await bcrypt.compare(password, user.passwordHash);
+      if (!valid) return null;
+      return { id: user._id.toString(), name: user.name, email: user.email, role: user.role };
+    }
+
+    // Student/teacher login: one-time code.
+    const code = (credentials?.code as string | undefined)?.trim().toUpperCase();
+    if (!code) return null;
+    const user = await User.findOne({ loginCode: code });
+    if (!user) return null;
+    await User.findByIdAndUpdate(user._id, { loginCode: null }); // consume — one-time use
+    return { id: user._id.toString(), name: user.name, email: user.email, role: user.role };
+  },
+})
+```
+
+### Student/teacher: one-time code
+
+1. **Code creation.** An admin (or teacher) fills out the "Add User" form in `/admin`, role student or teacher. Server-side, `lib/generateCode.ts` runs:
    ```typescript
    export function generateLoginCode(): string {
      return randomBytes(4).toString("hex").toUpperCase();
    }
    ```
    `randomBytes(4)` is 4 cryptographically-random bytes → 8 hex characters, uppercased (e.g. `A4K9PX3M`). This is stored directly on the new `User` document's `loginCode` field.
+2. **Code delivery.** The UI shows that code once, with a "Copy" button (see `components/admin/UserTable.tsx`). The admin hands it to the actual person through whatever channel they like — the app plays no role in delivering it.
+3. **Logging in.** The `/login` page (`app/login/page.tsx`) submits `signIn("credentials", { code, redirect: false })`.
+4. **One-time use.** The provider clears `loginCode` to `null` the instant it's used successfully — the same code can never work twice. To log in again later (new device, cleared cookies), an admin clicks "New code" for that user on the Users page (`POST /api/admin/users/[id]/generate-code`), which refuses to run for admin-role accounts (they don't use codes at all — see below).
 
-2. **Code delivery.** The UI shows that code once, with a "Copy" button (see `components/admin/UserTable.tsx`). The admin is expected to hand it to the actual person through whatever channel they like (in person, chat, etc.) — the app plays no role in delivering it.
+### Admin: email + password
 
-3. **Logging in.** The `/login` page (`app/login/page.tsx`) is a simple form: type the code, hit "Sign in." This calls NextAuth's `signIn("credentials", { code, redirect: false })`.
+1. **Setting a password.** The very first admin is created by `POST /api/setup` with `{ name, email, password }` — there's no UI for this one (nobody is logged in yet to use one), so it's a single bootstrap API call. Every other admin is created from the Users page exactly like a student/teacher, just with a password field shown instead of triggering a generated code (`app/api/admin/users/route.ts` branches on `role === "admin"`). In both cases the password is hashed with `bcrypt.hash(password, 10)` and stored as `passwordHash` — the plaintext password is never persisted.
+2. **Logging in.** On `/login`, clicking "Admin? Sign in with email & password" swaps the form to email + password fields, calling `signIn("credentials", { email, password, redirect: false })`.
+3. **Not one-time.** Unlike the code flow, a successful password login does **not** clear or change anything — the same password keeps working across as many logins as you want, exactly like a normal account, because there's no equivalent of "an admin handing themselves a fresh code" if they're the only admin and get logged out.
+4. **Changing it.** An existing admin can set a new password for any admin account (including their own) via "Set new password" on the Users page (`POST /api/admin/users/[id]/set-password`).
+5. **Recovery if truly locked out** (no admin left who can log in at all): there's no "forgot password" flow, so the only path is setting a new `passwordHash` directly in the database — see the Docker guide's "Locked out?" section for the exact command if you're running this in Docker; the same idea (set the field directly via `mongosh`) applies to any MongoDB instance.
 
-4. **Verification.** NextAuth's `Credentials` provider, defined in `lib/auth.ts`:
-   ```typescript
-   Credentials({
-     credentials: { code: {} },
-     async authorize(credentials) {
-       const code = (credentials?.code as string | undefined)?.trim().toUpperCase();
-       if (!code) return null;
-       await connectDB();
-       const user = await User.findOne({ loginCode: code });
-       if (!user) return null;
-       // consume the code — one-time use
-       await User.findByIdAndUpdate(user._id, { loginCode: null });
-       return { id: user._id.toString(), name: user.name, email: user.email, role: user.role };
-     },
-   })
-   ```
-   It looks up a user by that exact code. If found, it **immediately clears the code** (`loginCode: null`) before returning success — so the same code can never be used a second time. If someone needs to log in again later (new device, cleared cookies), an admin clicks "New code" for them on the Users page, which calls `POST /api/admin/users/[id]/generate-code` to overwrite `loginCode` with a fresh one.
+### Session (shared by both flows)
 
-5. **Session.** On success, NextAuth issues a JWT session cookie (`session: { strategy: "jwt" }` in `lib/auth.config.ts`). The `jwt` and `session` callbacks there copy the user's `id` and `role` onto the token/session, so every subsequent page load knows who's logged in and what role they have **without hitting the database again** — that's the whole point of JWT sessions over database sessions here.
+On success, NextAuth issues a JWT session cookie (`session: { strategy: "jwt" }` in `lib/auth.config.ts`). The `jwt` and `session` callbacks there copy the user's `id` and `role` onto the token/session, so every subsequent page load knows who's logged in and what role they have **without hitting the database again** — that's the whole point of JWT sessions over database sessions here.
 
 One subtle but deliberate detail: there are **two** separate NextAuth instances in this codebase:
 
