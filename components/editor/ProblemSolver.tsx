@@ -6,6 +6,7 @@ import ReactMarkdown from "react-markdown";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import rehypeRaw from "rehype-raw";
+import Link from "next/link";
 import { GraphPanel } from "./GraphPanel";
 import { IProblem, IParameter } from "@/models/Problem";
 import { useTheme } from "next-themes";
@@ -132,6 +133,12 @@ export function ProblemSolver({ problem }: Props) {
       <div style={{ width: panelWidth }}
         className="flex-shrink-0 overflow-y-auto p-6 flex flex-col gap-6 bg-white dark:bg-gray-950">
         <div>
+          <Link
+            href="/problems"
+            className="inline-flex items-center gap-1 text-xs text-gray-400 hover:text-blue-600 dark:text-gray-500 dark:hover:text-blue-400 mb-2 transition-colors"
+          >
+            ← Back to problems
+          </Link>
           <p className="text-xs text-gray-400 dark:text-gray-500 mb-1">
             Chapter {problem.chapter} · #{problem.problemNumber}
           </p>

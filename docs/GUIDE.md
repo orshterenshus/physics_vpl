@@ -44,13 +44,13 @@ There's no email and no password. The login screen asks for a one-time **code** 
 
 ### 2. The student's problem list
 
-After logging in, a student lands on `/problems` — every problem in the database, grouped by chapter.
+After logging in, a student lands on `/problems` — every problem in the database, grouped by chapter. Each row shows either **"Solve"** (never attempted) or that student's **latest grade** on that problem (e.g. `92%`, colored green/red the same as the grade card on the solve page) — so a student can see at a glance what they've already completed without opening each one. This reflects the most recent graded submission only, not the best one; resubmitting a problem updates what's shown here even if an earlier attempt scored higher.
 
 ![Problems list](screenshots/02-problems-list.png)
 
 ### 3. Solving a problem
 
-Clicking a problem opens the main workspace: the problem statement (with rendered LaTeX, e.g. the boxed acceleration formula below) on the left, a Monaco code editor on the right, and the problem's named parameters (here, `A` and `ω`) shown as a quick-reference panel. Both the left/right split and the editor/output split are **draggable** — note the thin resize handles between panels.
+Clicking a problem opens the main workspace: the problem statement (with rendered LaTeX, e.g. the boxed acceleration formula below) on the left, a Monaco code editor on the right, and the problem's named parameters (here, `A` and `ω`) shown as a quick-reference panel. A **"← Back to problems"** link above the chapter/number line returns to the list at any time. Both the left/right split and the editor/output split are **draggable** — note the thin resize handles between panels.
 
 ![Problem solver, initial state](screenshots/03-problem-solver.png)
 
@@ -408,7 +408,7 @@ physics_vpl/
 │   ├── (student)/
 │   │   ├── layout.tsx             # Requires any session; shows student header
 │   │   └── problems/
-│   │       ├── page.tsx           # Problem list grouped by chapter
+│   │       ├── page.tsx           # Problem list grouped by chapter, shows latest grade per problem
 │   │       └── [id]/page.tsx      # Loads one Problem, renders <ProblemSolver>
 │   ├── (teacher)/
 │   │   ├── layout.tsx             # Requires role teacher|admin; teacher header/nav
@@ -595,7 +595,9 @@ A non-obvious lesson learned while building this prompt: **never show this model
 
 ### Frontend components
 
-**`ProblemSolver.tsx`** — the student's main screen. Holds the current code, the last Run's output, and (once available) the graded submission, all in local React state. Two independent drag-to-resize behaviors are implemented with the same pattern: a `useRef` boolean flag set `true` on the handle's `onMouseDown`, a window-level `mousemove` listener that only acts while that flag is true (clamped to a min/max pixel range), and `mouseup` clearing the flag. One resizes the left problem-panel's width; the other resizes the output panel's height independently. **Submit** posts to `/api/submissions`, gets back a `submissionId`, then runs a `setInterval` polling `/api/submissions/[id]` every 2 seconds, stopping either when `grade` is no longer `null` or after 30 attempts (60 seconds) — whichever comes first.
+**`ProblemSolver.tsx`** — the student's main screen. Holds the current code, the last Run's output, and (once available) the graded submission, all in local React state. A `<Link href="/problems">← Back to problems</Link>` sits above the chapter/number line. Two independent drag-to-resize behaviors are implemented with the same pattern: a `useRef` boolean flag set `true` on the handle's `onMouseDown`, a window-level `mousemove` listener that only acts while that flag is true (clamped to a min/max pixel range), and `mouseup` clearing the flag. One resizes the left problem-panel's width; the other resizes the output panel's height independently. **Submit** posts to `/api/submissions`, gets back a `submissionId`, then runs a `setInterval` polling `/api/submissions/[id]` every 2 seconds, stopping either when `grade` is no longer `null` or after 30 attempts (60 seconds) — whichever comes first.
+
+**`app/(student)/problems/page.tsx`** — the problem list. Alongside the existing `Problem.find(...)` query, it now also queries `Submission.find({ studentId: session.user.id, grade: { $ne: null } })` sorted by `createdAt` descending, and keeps only the first (i.e. most recent) submission per `problemId` in a plain `Record<string, number>` map. Each row shows that grade instead of "Solve" if one exists for that problem — purely a presentational change, no new API route or schema needed, since `Submission` already had everything required.
 
 **`ProblemEditor.tsx`** — the teacher's authoring form, used for both creating and editing (the only difference is whether a `problem` prop was passed in, which also decides whether it `POST`s to `/api/problems` or `PUT`s to `/api/admin/problems/[id]`). The right-hand side is a single tab strip switching between four targets — the description gets a Markdown+KaTeX live preview toggle; the other three (starter code, teacher solution, eval hints) are plain Monaco editors pointed at different string fields of the same form state.
 
