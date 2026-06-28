@@ -24,7 +24,9 @@ First run will take a while — it builds the app image, downloads the `mongo` a
 docker compose logs -f ollama-pull
 ```
 
-Once that finishes, open [http://localhost:3000](http://localhost:3000). You'll land on `/login` — the database is empty, so create the first admin account exactly as in the non-Docker setup:
+The example problems (Particle Trajectory, Bouncing Ball, etc.) are inserted automatically by the `seed` service as part of `docker compose up` — no separate command needed.
+
+Once everything finishes, open [http://localhost:3000](http://localhost:3000). You'll land on `/login` — there are no user accounts yet (only the example problems are seeded, not users), so create the first admin account exactly as in the non-Docker setup:
 
 ```bash
 curl -X POST http://localhost:3000/api/setup \
@@ -36,16 +38,19 @@ That returns a one-time login code — paste it into the login page and you're i
 
 ## What's actually running
 
-`docker compose up` starts four containers on a private network Compose creates automatically, where each one can reach the others by service name:
+`docker compose up` starts containers on a private network Compose creates automatically, where each one can reach the others by service name:
 
 | Service | What it is | Reachable at |
 |---|---|---|
 | `app` | This repo, built from the `Dockerfile` (Next.js + a Python3/NumPy runtime for grading code execution) | `http://localhost:3000` from your browser |
-| `mongo` | Official `mongo:7` image | `mongo:27017` from inside the network only — not exposed to your host |
+| `mongo` | Official `mongo:7` image | `mongo:27017` from inside the network; also `localhost:27017` from your host (bound to `127.0.0.1` only) so you can inspect it with `mongosh`/Compass if you want |
 | `ollama` | Official `ollama/ollama` image — the actual LLM inference server | `http://localhost:11434` (exposed mainly so you can run `ollama` CLI commands against it directly if you want) |
-| `ollama-pull` | Not a long-running service — runs once, downloads the model named in `OLLAMA_MODEL`, then exits | — |
+| `ollama-pull` | One-shot — runs once, downloads the model named in `OLLAMA_MODEL`, then exits | — |
+| `seed` | One-shot — runs once, inserts the example problems, then exits. Safe to re-run (it clears those chapters first, so it never duplicates) | — |
 
 Two named volumes (`mongo_data`, `ollama_data`) persist the database and the downloaded model(s) across restarts, so you only download the model once.
+
+There's no Mongo username/password configured — `mongo` isn't reachable from anywhere except this machine and the other containers, so for a local single-user setup like this, authentication adds little real protection. If you ever deploy this somewhere more exposed than your own machine, add one.
 
 ## Choosing a model
 
@@ -77,6 +82,10 @@ docker compose ps              # see what's running
 docker compose logs -f app      # tail the Next.js app's logs
 docker compose down             # stop everything (data is preserved in volumes)
 docker compose down -v          # stop everything AND delete the database + downloaded models
+
+# Look up a user's current login code directly (e.g. if you lost it before logging in):
+docker compose exec mongo mongosh physics-lab --quiet --eval \
+  'db.users.find({}, {name:1, email:1, role:1, loginCode:1}).forEach(u => print(JSON.stringify(u)))'
 ```
 
 ## Troubleshooting

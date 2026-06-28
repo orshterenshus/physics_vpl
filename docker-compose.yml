@@ -4,6 +4,8 @@ services:
     restart: unless-stopped
     volumes:
       - mongo_data:/data/db
+    ports:
+      - "127.0.0.1:27017:27017"
     healthcheck:
       test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
       interval: 10s
@@ -45,6 +47,20 @@ services:
     entrypoint: ["ollama", "pull", "${OLLAMA_MODEL:-qwen2.5:3b}"]
     restart: "no"
 
+  # One-shot job: inserts the example problems (safe to re-run — it clears
+  # those chapters first, so it never creates duplicates).
+  seed:
+    build:
+      context: .
+      target: builder
+    depends_on:
+      mongo:
+        condition: service_healthy
+    environment:
+      - MONGODB_URI=mongodb://mongo:27017/physics-lab
+    command: ["node", "scripts/seed.mjs"]
+    restart: "no"
+
   app:
     build: .
     restart: unless-stopped
@@ -52,6 +68,8 @@ services:
       mongo:
         condition: service_healthy
       ollama-pull:
+        condition: service_completed_successfully
+      seed:
         condition: service_completed_successfully
     ports:
       - "3000:3000"

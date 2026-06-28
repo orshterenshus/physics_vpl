@@ -1,8 +1,8 @@
 import { MongoClient, ObjectId } from "mongodb";
 
-const client = new MongoClient("mongodb://localhost:27017");
+const client = new MongoClient(process.env.MONGODB_URI ?? "mongodb://localhost:27017/physics-lab");
 await client.connect();
-const db = client.db("physics-lab");
+const db = client.db();
 const col = db.collection("problems");
 
 await col.deleteMany({ chapter: { $in: [2, 3, 4, 5] } });

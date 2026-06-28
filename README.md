@@ -103,7 +103,11 @@ python -m pip install numpy
 
 ### 3. Create `.env.local`
 
-Create a file called `.env.local` in the project root:
+Copy the template and fill in your own values:
+
+```bash
+cp .env.local.example .env.local
+```
 
 ```env
 MONGODB_URI=mongodb+srv://<user>:<password>@<cluster>.mongodb.net/<dbname>

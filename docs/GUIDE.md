@@ -259,7 +259,13 @@ npm install
 
 ### Step 6 — Create `.env.local`
 
-Create a file literally named `.env.local` in the project root (this file is git-ignored — it holds secrets and is never committed):
+Copy the committed template (`.env.local.example`) to `.env.local` and fill in your own values:
+
+```bash
+cp .env.local.example .env.local
+```
+
+`.env.local` itself is git-ignored — it holds real secrets and is never committed. Only the `.example` template is tracked, so anyone cloning the repo can see exactly which variables are needed and what they're named, without guessing:
 
 ```env
 MONGODB_URI=mongodb+srv://<user>:<password>@<cluster>.mongodb.net/<dbname>
