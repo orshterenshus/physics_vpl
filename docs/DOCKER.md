@@ -24,17 +24,25 @@ First run will take a while — it builds the app image, downloads the `mongo` a
 docker compose logs -f ollama-pull
 ```
 
-The example problems (Particle Trajectory, Bouncing Ball, etc.) are inserted automatically by the `seed` service as part of `docker compose up` — no separate command needed.
-
-Once everything finishes, open [http://localhost:3000](http://localhost:3000). You'll land on `/login` — there are no user accounts yet (only the example problems are seeded, not users), so create the first admin account exactly as in the non-Docker setup:
+The example problems (Particle Trajectory, Bouncing Ball, etc.) are inserted automatically by the `seed` service, and a first admin account is created automatically by the `bootstrap-admin` service — neither needs a manual command. Get the login code with:
 
 ```bash
-curl -X POST http://localhost:3000/api/setup \
-  -H "Content-Type: application/json" \
-  -d "{\"name\": \"Your Name\", \"email\": \"you@example.com\"}"
+docker compose logs bootstrap-admin
 ```
 
-That returns a one-time login code — paste it into the login page and you're in. From there, use the `/admin` page to create every other account.
+which prints something like:
+
+```
+========================================================
+First admin account created: Admin <admin@example.com>
+LOGIN CODE: A92A4CFC
+Go to http://localhost:3000/login and enter this code.
+========================================================
+```
+
+Open [http://localhost:3000/login](http://localhost:3000/login), paste in that code, and you're in. It's one-time use — the moment you log in, use the `/admin` page to create every other account (and your own, with a real name/email, if you want — the auto-created one is just a generic placeholder admin).
+
+If you ever re-run `docker compose up` after an admin already exists, `bootstrap-admin`'s logs will just say so and exit — it won't overwrite anything or generate a new code at that point (see [Common commands](#common-commands) for how to look up an existing code).
 
 ## What's actually running
 
@@ -47,6 +55,7 @@ That returns a one-time login code — paste it into the login page and you're i
 | `ollama` | Official `ollama/ollama` image — the actual LLM inference server | `http://localhost:11434` (exposed mainly so you can run `ollama` CLI commands against it directly if you want) |
 | `ollama-pull` | One-shot — runs once, downloads the model named in `OLLAMA_MODEL`, then exits | — |
 | `seed` | One-shot — runs once, inserts the example problems, then exits. Safe to re-run (it clears those chapters first, so it never duplicates) | — |
+| `bootstrap-admin` | One-shot — waits for `app` to be healthy, then creates the first admin account and prints its login code to its own logs | — |
 
 Two named volumes (`mongo_data`, `ollama_data`) persist the database and the downloaded model(s) across restarts, so you only download the model once.
 
