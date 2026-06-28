@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { SignOutButton } from "@/components/ui/SignOutButton";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
+import { BackToProblemsLink } from "@/components/ui/BackToProblemsLink";
 
 export default async function StudentLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
@@ -16,12 +17,7 @@ export default async function StudentLayout({ children }: { children: React.Reac
           <Link href="/problems" className="font-semibold text-gray-900 dark:text-white">
             Physics Lab
           </Link>
-          <Link
-            href="/problems"
-            className="font-bold text-sm text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300 transition-colors"
-          >
-            ← Back to Problems
-          </Link>
+          <BackToProblemsLink />
         </div>
         <div className="flex items-center gap-3 text-sm text-gray-500 dark:text-gray-400">
           <span>{session.user.email}</span>
