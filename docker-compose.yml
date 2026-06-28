@@ -1,0 +1,69 @@
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  ollama:
+    image: ollama/ollama:latest
+    restart: unless-stopped
+    volumes:
+      - ollama_data:/root/.ollama
+    ports:
+      - "11434:11434"
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    # Uncomment to use an NVIDIA GPU (requires the NVIDIA Container Toolkit on the host).
+    # Without this, Ollama runs on CPU, which works everywhere but is much slower —
+    # this is why OLLAMA_MODEL below defaults to a small model.
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: 1
+    #           capabilities: [gpu]
+
+  # One-shot job: pulls the chosen model into the shared `ollama_data` volume, then exits.
+  # Re-run automatically whenever OLLAMA_MODEL changes (`docker compose up -d` again).
+  ollama-pull:
+    image: ollama/ollama:latest
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      - OLLAMA_HOST=ollama:11434
+    entrypoint: ["ollama", "pull", "${OLLAMA_MODEL:-qwen2.5:3b}"]
+    restart: "no"
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      mongo:
+        condition: service_healthy
+      ollama-pull:
+        condition: service_completed_successfully
+    ports:
+      - "3000:3000"
+    environment:
+      - MONGODB_URI=mongodb://mongo:27017/physics-lab
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-qwen2.5:3b}
+      - AUTH_SECRET=${AUTH_SECRET:?Set AUTH_SECRET in .env — see .env.example}
+      - NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost:3000}
+      - AUTH_TRUST_HOST=true
+      - PYTHON_CMD=python3
+
+volumes:
+  mongo_data:
+  ollama_data:

@@ -3,6 +3,8 @@
 A web application for physics courses where students write Python code to solve simulation problems. Submissions are automatically graded by a local LLM that evaluates physics correctness, coding quality, and the quality of the student's physical reasoning in their comments.
 
 > **New here?** [`docs/GUIDE.md`](docs/GUIDE.md) is a full walkthrough with screenshots, a zero-to-running install guide, and a line-by-line explanation of how the code works. This README is the quick reference.
+>
+> **Want to skip installing Node/Python/MongoDB/Ollama by hand?** [`docs/DOCKER.md`](docs/DOCKER.md) runs the whole stack — app, database, and the LLM itself — in containers with one `docker compose up`.
 
 ---
 
