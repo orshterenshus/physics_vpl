@@ -2,6 +2,8 @@
 
 A web application for physics courses where students write Python code to solve simulation problems. Submissions are automatically graded by a local LLM that evaluates physics correctness, coding quality, and the quality of the student's physical reasoning in their comments.
 
+> **New here?** [`docs/GUIDE.md`](docs/GUIDE.md) is a full walkthrough with screenshots, a zero-to-running install guide, and a line-by-line explanation of how the code works. This README is the quick reference.
+
 ---
 
 ## Features
@@ -50,7 +52,7 @@ The final grade is calculated programmatically from the three component scores �
 | Language | TypeScript |
 | Styling | Tailwind CSS v4 |
 | Database | MongoDB Atlas via Mongoose |
-| Auth | NextAuth v5 (JWT, email magic-code login) |
+| Auth | NextAuth v5 (JWT, one-time login-code credentials — no email/password) |
 | LLM | Ollama (local, any compatible model) |
 | Code editor | Monaco Editor |
 | Graphs | Recharts |
@@ -104,7 +106,6 @@ Create a file called `.env.local` in the project root:
 ```env
 MONGODB_URI=mongodb+srv://<user>:<password>@<cluster>.mongodb.net/<dbname>
 AUTH_SECRET=<any-random-secret-string>
-AUTH_RESEND_KEY=<your-resend-api-key>
 NEXTAUTH_URL=http://localhost:3000
 OLLAMA_BASE_URL=http://127.0.0.1:11434
 OLLAMA_MODEL=qwen2.5:14b
@@ -113,21 +114,33 @@ PYTHON_CMD=python
 
 > **Note:** Use `127.0.0.1` not `localhost` for `OLLAMA_BASE_URL` — Ollama binds to IPv4 only.
 
-### 4. Seed the database (first run only)
-
-```bash
-node scripts/seed.mjs
-```
-
-This creates an initial admin user. Check the script for the default credentials.
-
-### 5. Start the development server
+### 4. Start the development server
 
 ```bash
 npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000).
+
+### 5. Bootstrap the first admin account (first run only)
+
+There's no login UI for creating the very first user — the database starts empty. A one-time API endpoint creates the first admin: it works exactly once and refuses to run again once any user exists.
+
+```bash
+curl -X POST http://localhost:3000/api/setup \
+  -H "Content-Type: application/json" \
+  -d "{\"name\": \"Your Name\", \"email\": \"you@example.com\"}"
+```
+
+The response includes a one-time **login code**, e.g. `{"message":"Admin created","code":"A4K9PX3M"}`. Go to `/login`, paste that code in, and you're in as admin. See [Authentication](#authentication) below for how this code-based login works.
+
+### 6. Seed example problems (optional)
+
+```bash
+node scripts/seed.mjs
+```
+
+This populates the database with the example physics problems used throughout this README (Particle Trajectory, Bouncing Ball, etc.) — it does **not** create any user accounts.
 
 ---
 
@@ -144,7 +157,7 @@ physics_vpl/
 │   │   ├── submissions/  # Submit code and poll for grade results
 │   │   ├── problems/     # CRUD for problems
 │   │   └── admin/        # Admin-only user and problem management
-│   └── login/            # Email magic-code login page
+│   └── login/            # Login-code entry page (no email/password)
 ├── components/
 │   ├── editor/
 │   │   ├── ProblemSolver.tsx   # Main student view: resizable editor + run + submit
@@ -170,6 +183,19 @@ physics_vpl/
 
 ---
 
+## Authentication
+
+There is no email and no password anywhere in this app. Login works with a single one-time **code**:
+
+1. An admin (or teacher) creates a user account — via the [`/admin`](#admin) Users page, or the very first one via `POST /api/setup` (see Setup above). Creating a user generates a random 8-character code (e.g. `A4K9PX3M`) and stores it on that user's record.
+2. The admin/teacher gives that code to the person (verbally, by chat, however) — there is no email sent by the app.
+3. That person goes to `/login`, types the code in, and is signed in.
+4. The code is single-use: the instant it's used to log in successfully, it's cleared from the database. To let that person log in again later (e.g. a new browser/device), an admin generates them a fresh code from the Users page.
+
+This is implemented as a NextAuth v5 `Credentials` provider (`lib/auth.ts`) that looks up `User.findOne({ loginCode: code })` — there's no separate email-sending service involved, despite what the name "magic code" might suggest elsewhere.
+
+---
+
 ## User Roles
 
 ### Student
@@ -186,8 +212,8 @@ physics_vpl/
 
 ### Admin
 - All teacher permissions
-- Create and manage user accounts
-- Generate login codes for students
+- Create and manage user accounts (student, teacher, or admin)
+- Generate one-time login codes — share the code with the user directly; there is no email step
 
 ---
 
@@ -304,7 +330,6 @@ The table below shows the four reference examples from [`Q1 examples for grading
 |---|---|
 | `MONGODB_URI` | MongoDB Atlas connection string |
 | `AUTH_SECRET` | Random secret for NextAuth JWT signing |
-| `AUTH_RESEND_KEY` | Resend API key for magic-code emails |
 | `NEXTAUTH_URL` | Full URL of the app (e.g. `http://localhost:3000`) |
 | `OLLAMA_BASE_URL` | Ollama API base URL — use `http://127.0.0.1:11434` |
 | `OLLAMA_MODEL` | Model name (e.g. `qwen2.5:14b`) |
