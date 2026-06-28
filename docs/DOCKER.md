@@ -107,6 +107,17 @@ docker compose exec mongo mongosh physics-lab --quiet --eval \
   'db.users.find({}, {name:1, email:1, role:1, loginCode:1}).forEach(u => print(JSON.stringify(u)))'
 ```
 
+## Locked out? (code already used, signed out, nobody can log in)
+
+Login codes are one-time use — the instant one is used, it's cleared from the database. There's no "forgot code" / "resend" flow in the UI, and `/api/setup` permanently refuses to run again once *any* user exists (even if that user got locked out and there's no other admin to issue them a new code through `/admin`). If that happens to everyone at once, the fix is to set a fresh code directly in the database — this is exactly what `bootstrap-admin` and the `/admin` page do under the hood, just done manually this once:
+
+```bash
+docker compose exec mongo mongosh physics-lab --quiet --eval \
+  "db.users.updateOne({email: 'the-locked-out-user@example.com'}, {\$set: {loginCode: 'NEWCODE1'}})"
+```
+
+Replace the email with the actual account's email (look it up first with the command above if you're not sure), and `NEWCODE1` with anything you want (it gets uppercased automatically on login regardless of what case you type here). Then log in with that code at `/login` like normal.
+
 ## Troubleshooting
 
 | Symptom | Cause |
