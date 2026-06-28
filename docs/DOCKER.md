@@ -4,6 +4,12 @@ This is the "send it to someone and they run one command" path. It bundles **eve
 
 The one thing this **can't** fully paper over is the LLM model choice: different machines can realistically run different model sizes (a 14B-parameter model needs a strong GPU to be fast; a 3B model runs tolerably on CPU alone). That's handled with one environment variable, explained below — not a rebuild.
 
+## Where to run these commands
+
+Every command on this page (`docker compose up`, `docker compose logs ...`, etc.) goes in a **regular terminal on your own machine** — PowerShell, Command Prompt, or Git Bash on Windows, Terminal on macOS/Linux. Open it and `cd` into the folder where you cloned the project, since `docker-compose.yml` lives there and `docker compose` needs to run from that folder.
+
+This is **not** the same as the terminal *inside* Docker Desktop's UI (the `>_` "Exec" button you get by clicking on a running container). That one opens a shell *inside one specific container* — useful for poking around inside it directly (e.g. running `mongosh` by hand), but `docker compose` itself isn't installed inside any container; it's a tool on your host machine that starts and orchestrates all of them from outside. Don't run the commands below in that container Exec terminal — they won't work there.
+
 ## Quick start
 
 ```bash
@@ -39,6 +45,8 @@ LOGIN CODE: A92A4CFC
 Go to http://localhost:3000/login and enter this code.
 ========================================================
 ```
+
+This code logs you in as **admin** (the highest of the three roles — `student` / `teacher` / `admin`), not "teacher." Admin includes every teacher capability (creating/editing problems, viewing all submissions) plus user management, so you can do everything a teacher can right away, and also create teacher and student accounts for everyone else from the `/admin` page.
 
 Open [http://localhost:3000/login](http://localhost:3000/login), paste in that code, and you're in. It's one-time use — the moment you log in, use the `/admin` page to create every other account (and your own, with a real name/email, if you want — the auto-created one is just a generic placeholder admin).
 
