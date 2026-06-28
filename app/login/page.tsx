@@ -57,9 +57,9 @@ export default function LoginPage() {
           ) : (
             <>
               <input
-                type="email"
+                type="text"
                 required
-                placeholder="Email"
+                placeholder="Email (or admin username)"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg px-4 py-2 text-sm focus:outline-none focus:border-blue-500 text-gray-900 dark:text-white"

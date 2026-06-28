@@ -38,7 +38,7 @@ export async function POST(req: Request) {
   if (role === "admin") {
     if (!password) return NextResponse.json({ error: "Password required for admin accounts" }, { status: 400 });
     const passwordHash = await bcrypt.hash(password, 10);
-    const user = await User.create({ name, email, role, passwordHash });
+    const user = await User.create({ name, email, role, passwordHash, mustChangePassword: true });
     const { passwordHash: _omit, ...safeUser } = user.toObject();
     return NextResponse.json({ user: safeUser }, { status: 201 });
   }

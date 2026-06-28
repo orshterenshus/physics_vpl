@@ -7,6 +7,7 @@ import { ThemeToggle } from "@/components/ui/ThemeToggle";
 export default async function StudentLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
   if (!session) redirect("/login");
+  if (session.user.mustChangePassword) redirect("/change-password");
 
   return (
     <div className="min-h-screen flex flex-col">

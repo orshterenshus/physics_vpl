@@ -16,6 +16,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "name, email, and password required" }, { status: 400 });
   }
   const passwordHash = await bcrypt.hash(password, 10);
-  await User.create({ name, email, role: "admin", passwordHash });
-  return NextResponse.json({ message: "Admin created. Sign in with email + password at /login." });
+  await User.create({ name, email, role: "admin", passwordHash, mustChangePassword: true });
+  return NextResponse.json({ message: "Admin created. Sign in with email + password at /login — you'll be asked to set a new password on first login." });
 }

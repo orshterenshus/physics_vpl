@@ -14,7 +14,10 @@ await client.connect();
 const db = client.db();
 
 const passwordHash = await bcrypt.hash(password, 10);
-const result = await db.collection("users").updateOne({ email, role: "admin" }, { $set: { passwordHash } });
+const result = await db.collection("users").updateOne(
+  { email, role: "admin" },
+  { $set: { passwordHash, mustChangePassword: true } }
+);
 
 console.log(
   result.matchedCount > 0

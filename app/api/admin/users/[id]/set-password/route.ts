@@ -25,6 +25,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   }
 
   target.passwordHash = await bcrypt.hash(parsed.data.password, 10);
+  target.mustChangePassword = true;
   await target.save();
   return NextResponse.json({ success: true });
 }

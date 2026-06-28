@@ -22,7 +22,13 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           if (!user?.passwordHash) return null;
           const valid = await bcrypt.compare(password, user.passwordHash);
           if (!valid) return null;
-          return { id: user._id.toString(), name: user.name, email: user.email, role: user.role };
+          return {
+            id: user._id.toString(),
+            name: user.name,
+            email: user.email,
+            role: user.role,
+            mustChangePassword: user.mustChangePassword,
+          };
         }
 
         // Student/teacher login: one-time code.
@@ -50,6 +56,7 @@ declare module "next-auth" {
       email: string;
       name: string;
       role: "student" | "teacher" | "admin";
+      mustChangePassword: boolean;
     };
   }
 }

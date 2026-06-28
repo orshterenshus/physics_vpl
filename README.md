@@ -202,6 +202,8 @@ There's no email-sending service anywhere in this app. Login works differently d
 
 **Admins** sign in with an email + a real password instead (the "Admin? Sign in with email & password" link on `/login`) — not a one-time code. This is deliberate: an admin who gets logged out with nobody else around to issue them a fresh code would otherwise be permanently locked out. A password persists across logins like a normal account. The very first admin is created via `POST /api/setup` (see Setup above) with `{ name, email, password }`; every other admin is created the same way an admin creates anyone else, from the Users page, just with a password field instead of a generated code.
 
+Whenever an admin's password is (re)set — at creation, via "Set new password" on the Users page, or via the Docker recovery script — the account is flagged `mustChangePassword`. The next time that account logs in, every page redirects to `/change-password` until a new password (8+ characters) is set; logging in with the old password no longer works the moment the new one is saved. This is what makes it safe for the Docker setup to default to the literal username/password `admin`/`admin` — the first real login forces it to be replaced.
+
 Both flows are handled by the same NextAuth v5 `Credentials` provider (`lib/auth.ts`) — it checks for a `password` field first (looked up by email, verified with `bcrypt.compare` against a hashed `passwordHash`), and falls back to the one-time-code lookup (`User.findOne({ loginCode: code })`) otherwise.
 
 ---

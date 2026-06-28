@@ -20,11 +20,7 @@ cd physics_vpl
 cp .env.example .env
 ```
 
-Open `.env` and set:
-- `AUTH_SECRET` to a random string (e.g. run `openssl rand -base64 32` and paste the result in)
-- `ADMIN_PASSWORD` to whatever you want your admin password to be (this becomes your real, reusable login, set up automatically below)
-
-Leave `OLLAMA_MODEL` as the default unless you know your machine has a strong GPU (see [Choosing a model](#choosing-a-model) below).
+Open `.env` and set `AUTH_SECRET` to a random string (e.g. run `openssl rand -base64 32` and paste the result in). Leave `ADMIN_EMAIL`/`ADMIN_PASSWORD` as the default `admin`/`admin` — you'll be forced to replace it with a real password the first time you actually log in, so there's no need to pick one now (see below). Leave `OLLAMA_MODEL` as the default too unless you know your machine has a strong GPU (see [Choosing a model](#choosing-a-model) below).
 
 ```bash
 docker compose up -d --build
@@ -46,16 +42,17 @@ which prints something like:
 
 ```
 ========================================================
-First admin account created: Admin <admin@example.com>
+First admin account created: Admin <admin>
 Sign in at http://localhost:3000/login using "Admin? Sign in
 with email & password" with that email and the ADMIN_PASSWORD
-you set in .env.
+you set in .env. You'll be asked to set a new password the
+first time you log in.
 ========================================================
 ```
 
 This account is **admin** (the highest of the three roles — `student` / `teacher` / `admin`), not "teacher." Admin includes every teacher capability (creating/editing problems, viewing all submissions) plus user management, so you can do everything a teacher can right away, and also create teacher, student, and additional admin accounts from the `/admin` page.
 
-Open [http://localhost:3000/login](http://localhost:3000/login), click "Admin? Sign in with email & password," and sign in with `ADMIN_EMAIL`/`ADMIN_PASSWORD` from `.env`. Unlike student/teacher login codes, this doesn't expire on first use — log in as many times as you want with the same password. Change it any time from the Users page once you're in ("Set new password"), including for your own account.
+Open [http://localhost:3000/login](http://localhost:3000/login), click "Admin? Sign in with email & password," and sign in with `admin` / `admin` (or whatever you set `ADMIN_EMAIL`/`ADMIN_PASSWORD` to). The username field accepts a plain word like `admin`, not just real email addresses. The moment you sign in, every page redirects you to set a real password (8+ characters) before you can do anything else — the original `admin`/`admin` stops working as soon as you save the new one. After that, log in with the new password as many times as you want; unlike student/teacher login codes, it doesn't expire on use. Change it again any time from the Users page ("Set new password"), including for your own account.
 
 If you ever re-run `docker compose up` after an admin already exists, `bootstrap-admin`'s logs will just say so and exit — it won't create a second account or touch the existing one (see [Locked out?](#locked-out) if you need to reset a password instead).
 
@@ -135,7 +132,7 @@ A password can't be reset with a plain `mongosh $set` the way a code can — it'
 docker compose run --rm bootstrap-admin node scripts/docker-reset-admin-password.mjs you@example.com a-new-password
 ```
 
-This works even if `bootstrap-admin` already ran and exited earlier — `docker compose run` starts a fresh one-off container from that service's image regardless. If you're not sure of the email, look it up first with the command above (`role: "admin"` rows).
+This works even if `bootstrap-admin` already ran and exited earlier — `docker compose run` starts a fresh one-off container from that service's image regardless. If you're not sure of the email, look it up first with the command above (`role: "admin"` rows). Like every other way of setting an admin's password, this also forces a password change on next login — you'll land on `/change-password` immediately after signing in with the password you just set here, and need to replace it before doing anything else.
 
 ### Nobody — not even one user — exists at all
 

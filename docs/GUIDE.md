@@ -370,6 +370,14 @@ Credentials({
 4. **Changing it.** An existing admin can set a new password for any admin account (including their own) via "Set new password" on the Users page (`POST /api/admin/users/[id]/set-password`).
 5. **Recovery if truly locked out** (no admin left who can log in at all): there's no "forgot password" flow, so the only path is setting a new `passwordHash` directly in the database — see the Docker guide's "Locked out?" section for the exact command if you're running this in Docker; the same idea (set the field directly via `mongosh`) applies to any MongoDB instance.
 
+### Forced password change
+
+Every code path that sets an admin's password — `/api/setup`, creating an admin from the Users page, "Set new password," and the Docker recovery script — also sets `mustChangePassword: true` on that user (`models/User.ts`). This flag rides along in the JWT (`lib/auth.config.ts`'s `jwt`/`session` callbacks copy it onto the token alongside `id` and `role`), and every layout (`app/(student)/layout.tsx`, `app/(teacher)/layout.tsx`, `app/(admin)/layout.tsx`) checks it immediately after checking the session exists, redirecting to `/change-password` if it's true — before rendering anything else, regardless of which page was requested.
+
+`/change-password` (`app/change-password/page.tsx`) is a normal top-level page, not nested in any of those route groups, so there's no redirect loop. Submitting it calls `POST /api/account/change-password`, which hashes the new password and sets `mustChangePassword: false` — but since sessions are JWTs (not re-read from the database on every request), the *existing* token in the browser still has the old `mustChangePassword: true` baked in until a new one is issued. The page works around this by immediately calling `signIn("credentials", ...)` again with the just-set password right after the API call succeeds, which mints a fresh token reflecting the change, then redirects to `/admin`.
+
+This is what makes it safe to ship Docker with the literal default `ADMIN_EMAIL=admin` / `ADMIN_PASSWORD=admin` (see `.env.example`) — the account is unusable for anything beyond the change-password page until a real password replaces it.
+
 ### Session (shared by both flows)
 
 On success, NextAuth issues a JWT session cookie (`session: { strategy: "jwt" }` in `lib/auth.config.ts`). The `jwt` and `session` callbacks there copy the user's `id` and `role` onto the token/session, so every subsequent page load knows who's logged in and what role they have **without hitting the database again** — that's the whole point of JWT sessions over database sessions here.

@@ -21,7 +21,8 @@ if (res.ok) {
   console.log(`First admin account created: ${name} <${email}>`);
   console.log("Sign in at http://localhost:3000/login using \"Admin? Sign in");
   console.log(`with email & password\" with that email and the ADMIN_PASSWORD`);
-  console.log("you set in .env.");
+  console.log("you set in .env. You'll be asked to set a new password the");
+  console.log("first time you log in.");
   console.log("========================================================");
   console.log("");
 } else {
