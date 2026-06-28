@@ -6,6 +6,8 @@ export interface IUser {
   email: string;
   role: "student" | "teacher" | "admin";
   loginCode: string | null;
+  passwordHash: string | null;
+  mustChangePassword: boolean;
 }
 
 const UserSchema = new Schema<IUser>(
@@ -14,6 +16,10 @@ const UserSchema = new Schema<IUser>(
     email: { type: String, required: true, unique: true },
     role: { type: String, enum: ["student", "teacher", "admin"], default: "student" },
     loginCode: { type: String, default: null },
+    // Only set for admin accounts — students/teachers are invite-only via loginCode.
+    passwordHash: { type: String, default: null },
+    // Forces a password change on next login after (re)setting an admin's password.
+    mustChangePassword: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

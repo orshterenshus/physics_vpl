@@ -129,10 +129,10 @@ There's no login UI for creating the very first user — the database starts emp
 ```bash
 curl -X POST http://localhost:3000/api/setup \
   -H "Content-Type: application/json" \
-  -d "{\"name\": \"Your Name\", \"email\": \"you@example.com\"}"
+  -d "{\"name\": \"Your Name\", \"email\": \"you@example.com\", \"password\": \"choose-a-real-password\"}"
 ```
 
-The response includes a one-time **login code**, e.g. `{"message":"Admin created","code":"A4K9PX3M"}`. Go to `/login`, paste that code in, and you're in as admin. See [Authentication](#authentication) below for how this code-based login works.
+Go to `/login`, click "Admin? Sign in with email & password," and sign in with that email and password — unlike student/teacher codes, this isn't one-time, so it keeps working across logins. See [Authentication](#authentication) below for why admin works differently from student/teacher logins.
 
 ### 6. Seed example problems (optional)
 
@@ -185,21 +185,27 @@ physics_vpl/
 
 ## Authentication
 
-There is no email and no password anywhere in this app. Login works with a single one-time **code**:
+There's no email-sending service anywhere in this app. Login works differently depending on role:
 
-1. An admin (or teacher) creates a user account — via the [`/admin`](#admin) Users page, or the very first one via `POST /api/setup` (see Setup above). Creating a user generates a random 8-character code (e.g. `A4K9PX3M`) and stores it on that user's record.
-2. The admin/teacher gives that code to the person (verbally, by chat, however) — there is no email sent by the app.
+**Students and teachers** sign in with a single one-time **code**:
+
+1. An admin (or teacher) creates the account via the [`/admin`](#admin) Users page. Creating it generates a random 8-character code (e.g. `A4K9PX3M`) and stores it on that user's record.
+2. The admin/teacher gives that code to the person (verbally, by chat, however).
 3. That person goes to `/login`, types the code in, and is signed in.
 4. The code is single-use: the instant it's used to log in successfully, it's cleared from the database. To let that person log in again later (e.g. a new browser/device), an admin generates them a fresh code from the Users page.
 
-This is implemented as a NextAuth v5 `Credentials` provider (`lib/auth.ts`) that looks up `User.findOne({ loginCode: code })` — there's no separate email-sending service involved, despite what the name "magic code" might suggest elsewhere.
+**Admins** sign in with an email + a real password instead (the "Admin? Sign in with email & password" link on `/login`) — not a one-time code. This is deliberate: an admin who gets logged out with nobody else around to issue them a fresh code would otherwise be permanently locked out. A password persists across logins like a normal account. The very first admin is created via `POST /api/setup` (see Setup above) with `{ name, email, password }`; every other admin is created the same way an admin creates anyone else, from the Users page, just with a password field instead of a generated code.
+
+Whenever an admin's password is (re)set — at creation, or via "Set new password" on the Users page — the account is flagged `mustChangePassword`. The next time that account logs in, every page redirects to `/change-password` until a new password (8+ characters) is set; logging in with the old password no longer works the moment the new one is saved. If every admin is locked out with no way to log in at all, `node scripts/reset-admin-password.mjs <email> <new-password>` sets a fresh password directly in the database (it reads `MONGODB_URI` from `.env.local`).
+
+Both flows are handled by the same NextAuth v5 `Credentials` provider (`lib/auth.ts`) — it checks for a `password` field first (looked up by email, verified with `bcrypt.compare` against a hashed `passwordHash`), and falls back to the one-time-code lookup (`User.findOne({ loginCode: code })`) otherwise.
 
 ---
 
 ## User Roles
 
 ### Student
-- Browse problems organised by chapter
+- Browse problems organised by chapter — each one shows its latest grade once solved, or "Solve" if not yet attempted
 - Write and run Python code in the browser
 - Submit for grading — results appear within seconds
 - View score breakdown (physics / coding / reasoning) and feedback
@@ -213,7 +219,7 @@ This is implemented as a NextAuth v5 `Credentials` provider (`lib/auth.ts`) that
 ### Admin
 - All teacher permissions
 - Create and manage user accounts (student, teacher, or admin)
-- Generate one-time login codes — share the code with the user directly; there is no email step
+- Generate one-time login codes for students/teachers, or set passwords for admin accounts — share either directly; there is no email step
 
 ---
 

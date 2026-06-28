@@ -32,6 +32,7 @@ export function ProblemSolver({ problem }: Props) {
   const [output, setOutput] = useState<RunResult | null>(null);
   const [running, setRunning] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [gradingSlow, setGradingSlow] = useState(false);
   const [submission, setSubmission] = useState<{
     grade: number | null;
     feedback: string;
@@ -95,6 +96,7 @@ export function ProblemSolver({ problem }: Props) {
 
   const handleSubmit = useCallback(async () => {
     setSubmitting(true);
+    setGradingSlow(false);
     const executionOutput = output
       ? [...output.logs, output.error ?? ""].filter(Boolean).join("\n")
       : "";
@@ -109,19 +111,27 @@ export function ProblemSolver({ problem }: Props) {
 
     const { submissionId } = await res.json();
     let attempts = 0;
+    // Grading can take well over a minute on CPU-only LLM inference (e.g. the Docker
+    // setup without a GPU) — keep polling for up to 5 minutes rather than giving up
+    // after a fixed short window and leaving the UI stuck on a dead "Pending..." state.
+    const MAX_ATTEMPTS = 150; // 150 * 2s = 5 minutes
+    const SLOW_AFTER = 30; // show a "taking longer than usual" hint after 60s
     const poll = setInterval(async () => {
       attempts++;
+      if (attempts === SLOW_AFTER) setGradingSlow(true);
       const r = await fetch(`/api/submissions/${submissionId}`);
       if (r.ok) {
         const s = await r.json();
-        if (s.grade !== null || attempts >= 30) {
+        if (s.grade !== null || attempts >= MAX_ATTEMPTS) {
           clearInterval(poll);
           setSubmission(s);
           setSubmitting(false);
+          setGradingSlow(false);
         }
       } else {
         clearInterval(poll);
         setSubmitting(false);
+        setGradingSlow(false);
       }
     }, 2000);
   }, [code, output, problem._id]);
@@ -170,6 +180,17 @@ export function ProblemSolver({ problem }: Props) {
           </div>
         )}
 
+        {submitting && !submission && (
+          <div className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-4 flex flex-col gap-1">
+            <span className="font-semibold text-gray-900 dark:text-white">Grading…</span>
+            <span className="text-xs text-gray-500 dark:text-gray-400">
+              {gradingSlow
+                ? "Still working — this can take a few minutes without a GPU. Feel free to leave this open."
+                : "Usually takes 10–60 seconds."}
+            </span>
+          </div>
+        )}
+
         {submission && (
           <div className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-4 flex flex-col gap-3">
             <div className="flex items-center justify-between">
@@ -179,9 +200,14 @@ export function ProblemSolver({ problem }: Props) {
                   ? "text-green-600 dark:text-green-400"
                   : "text-red-600 dark:text-red-400"
               }`}>
-                {submission.grade !== null ? `${submission.grade}%` : "Pending..."}
+                {submission.grade !== null ? `${submission.grade}%` : "Still grading…"}
               </span>
             </div>
+            {submission.grade === null && (
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                This is taking unusually long. It may still finish in the background — try refreshing this page in a minute, or ask your teacher to check the Submissions page.
+              </p>
+            )}
             {submission.grade !== null && (
               <div className="grid grid-cols-3 gap-2 text-center text-xs">
                 {([["Physics", submission.physicsScore], ["Code", submission.codingScore], ["Reasoning", submission.reasoningScore]] as [string, number | null][]).map(([label, score]) => (
@@ -192,11 +218,13 @@ export function ProblemSolver({ problem }: Props) {
                 ))}
               </div>
             )}
-            <div className="prose prose-gray dark:prose-invert prose-sm max-w-none [&_p]:leading-relaxed">
-              <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeRaw, rehypeKatex]}>
-                {submission.feedback}
-              </ReactMarkdown>
-            </div>
+            {submission.grade !== null && (
+              <div className="prose prose-gray dark:prose-invert prose-sm max-w-none [&_p]:leading-relaxed">
+                <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeRaw, rehypeKatex]}>
+                  {submission.feedback}
+                </ReactMarkdown>
+              </div>
+            )}
           </div>
         )}
       </div>

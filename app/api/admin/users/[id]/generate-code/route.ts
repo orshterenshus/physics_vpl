@@ -11,8 +11,13 @@ export async function POST(_req: Request, { params }: { params: Promise<{ id: st
   }
   await connectDB();
   const { id } = await params;
+  const target = await User.findById(id);
+  if (!target) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (target.role === "admin") {
+    return NextResponse.json({ error: "Admin accounts sign in with a password, not a code — use 'Set new password' instead" }, { status: 400 });
+  }
   const code = generateLoginCode();
-  const user = await User.findByIdAndUpdate(id, { loginCode: code }, { new: true });
-  if (!user) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  target.loginCode = code;
+  await target.save();
   return NextResponse.json({ code });
 }

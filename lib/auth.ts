@@ -1,5 +1,6 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
+import bcrypt from "bcryptjs";
 import { connectDB } from "./db";
 import { User } from "@/models/User";
 import { authConfig } from "./auth.config";
@@ -8,11 +9,31 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   ...authConfig,
   providers: [
     Credentials({
-      credentials: { code: {} },
+      credentials: { code: {}, email: {}, password: {} },
       async authorize(credentials) {
+        await connectDB();
+
+        // Admin login: email + password.
+        const password = credentials?.password as string | undefined;
+        if (password) {
+          const email = (credentials?.email as string | undefined)?.trim().toLowerCase();
+          if (!email) return null;
+          const user = await User.findOne({ email, role: "admin" });
+          if (!user?.passwordHash) return null;
+          const valid = await bcrypt.compare(password, user.passwordHash);
+          if (!valid) return null;
+          return {
+            id: user._id.toString(),
+            name: user.name,
+            email: user.email,
+            role: user.role,
+            mustChangePassword: user.mustChangePassword,
+          };
+        }
+
+        // Student/teacher login: one-time code.
         const code = (credentials?.code as string | undefined)?.trim().toUpperCase();
         if (!code) return null;
-        await connectDB();
         const user = await User.findOne({ loginCode: code });
         if (!user) return null;
         // consume the code — one-time use
@@ -35,6 +56,7 @@ declare module "next-auth" {
       email: string;
       name: string;
       role: "student" | "teacher" | "admin";
+      mustChangePassword: boolean;
     };
   }
 }

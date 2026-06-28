@@ -3,17 +3,22 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { SignOutButton } from "@/components/ui/SignOutButton";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
+import { BackToProblemsLink } from "@/components/ui/BackToProblemsLink";
 
 export default async function StudentLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
   if (!session) redirect("/login");
+  if (session.user.mustChangePassword) redirect("/change-password");
 
   return (
     <div className="min-h-screen flex flex-col">
       <header className="border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 px-6 py-3 flex items-center justify-between">
-        <Link href="/problems" className="font-semibold text-gray-900 dark:text-white">
-          Physics Lab
-        </Link>
+        <div className="flex items-center gap-6">
+          <Link href="/problems" className="font-semibold text-gray-900 dark:text-white">
+            Physics Lab
+          </Link>
+          <BackToProblemsLink />
+        </div>
         <div className="flex items-center gap-3 text-sm text-gray-500 dark:text-gray-400">
           <span>{session.user.email}</span>
           {["teacher", "admin"].includes(session.user.role) && (

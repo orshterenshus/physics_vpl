@@ -8,6 +8,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   const session = await auth();
   if (!session) redirect("/login");
   if (!["teacher", "admin"].includes(session.user.role)) redirect("/problems");
+  if (session.user.mustChangePassword) redirect("/change-password");
 
   return (
     <div className="min-h-screen flex flex-col">

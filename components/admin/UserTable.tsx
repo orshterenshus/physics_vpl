@@ -13,7 +13,7 @@ export function UserTable({ initialUsers }: { initialUsers: UserWithId[] }) {
   const [users, setUsers] = useState<UserWithId[]>(initialUsers);
   const [codes, setCodes] = useState<Record<string, string>>({});
   const [creating, setCreating] = useState(false);
-  const [form, setForm] = useState({ name: "", email: "", role: "student" as IUser["role"] });
+  const [form, setForm] = useState({ name: "", email: "", role: "student" as IUser["role"], password: "" });
   const [formError, setFormError] = useState("");
 
   async function handleCreate(e: React.FormEvent) {
@@ -31,8 +31,8 @@ export function UserTable({ initialUsers }: { initialUsers: UserWithId[] }) {
     }
     const { user, code } = await res.json();
     setUsers((u) => [user, ...u]);
-    setCodes((c) => ({ ...c, [user._id]: code }));
-    setForm({ name: "", email: "", role: "student" });
+    if (code) setCodes((c) => ({ ...c, [user._id]: code }));
+    setForm({ name: "", email: "", role: "student", password: "" });
     setCreating(false);
   }
 
@@ -41,6 +41,25 @@ export function UserTable({ initialUsers }: { initialUsers: UserWithId[] }) {
     if (res.ok) {
       const { code } = await res.json();
       setCodes((c) => ({ ...c, [userId]: code }));
+    } else {
+      const err = await res.json();
+      alert(err.error ?? "Failed to generate code");
+    }
+  }
+
+  async function handleSetPassword(userId: string) {
+    const password = prompt("New password for this admin (min 8 characters):");
+    if (!password) return;
+    const res = await fetch(`/api/admin/users/${userId}/set-password`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password }),
+    });
+    if (res.ok) {
+      alert("Password updated.");
+    } else {
+      const err = await res.json();
+      alert(err.error ?? "Failed to set password");
     }
   }
 
@@ -83,10 +102,20 @@ export function UserTable({ initialUsers }: { initialUsers: UserWithId[] }) {
               <option value="admin">Admin</option>
             </select>
           </div>
+          {form.role === "admin" && (
+            <input required type="password" placeholder="Password (min 8 characters)" value={form.password}
+              onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
+              className={inputCls} />
+          )}
+          <p className="text-xs text-gray-400 dark:text-gray-500">
+            {form.role === "admin"
+              ? "Admin accounts sign in with this password — no login code."
+              : "A one-time login code will be generated after creating this account."}
+          </p>
           {formError && <p className="text-red-500 dark:text-red-400 text-xs">{formError}</p>}
           <button type="submit"
             className="bg-blue-600 hover:bg-blue-500 rounded-lg px-4 py-2 text-sm font-medium text-white transition-colors self-end">
-            Create & Generate Code
+            {form.role === "admin" ? "Create Admin" : "Create & Generate Code"}
           </button>
         </form>
       )}
@@ -117,7 +146,9 @@ export function UserTable({ initialUsers }: { initialUsers: UserWithId[] }) {
                   </span>
                 </td>
                 <td className="py-3 pr-4">
-                  {codes[u._id] ? (
+                  {u.role === "admin" ? (
+                    <span className="text-gray-400 dark:text-gray-600 text-xs">Signs in with password</span>
+                  ) : codes[u._id] ? (
                     <div className="flex items-center gap-2">
                       <code className="bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded text-xs font-mono tracking-widest text-green-700 dark:text-green-400">
                         {codes[u._id]}
@@ -135,10 +166,17 @@ export function UserTable({ initialUsers }: { initialUsers: UserWithId[] }) {
                 </td>
                 <td className="py-3">
                   <div className="flex gap-3 text-xs">
-                    <button onClick={() => handleGenerateCode(u._id)}
-                      className="text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300">
-                      New code
-                    </button>
+                    {u.role === "admin" ? (
+                      <button onClick={() => handleSetPassword(u._id)}
+                        className="text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300">
+                        Set new password
+                      </button>
+                    ) : (
+                      <button onClick={() => handleGenerateCode(u._id)}
+                        className="text-blue-600 dark:text-blue-400 hover:text-blue-500 dark:hover:text-blue-300">
+                        New code
+                      </button>
+                    )}
                     <button onClick={() => handleDelete(u._id)}
                       className="text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300">
                       Delete
