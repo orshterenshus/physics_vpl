@@ -101,6 +101,12 @@ By default, Ollama runs on CPU inside the container — this is what makes the s
 
 There's no AMD/Apple Silicon GPU passthrough equivalent for Docker containers today — on those machines, CPU inference (the default) is the only option inside a container, regardless of model size chosen.
 
+## Teacher tools (override, history, analytics, CSV export)
+
+Manual grade override, student submission history, the analytics dashboard, and CSV export all work identically in Docker — none of them need any extra setup, environment variable, or container beyond what's already running. See the [README's Teacher Tools section](../README.md#teacher-tools) for what each one does and what it looks like, and the [Guide's technical breakdown](GUIDE.md#teacher-tools-override-history-analytics-csv-export) for how they're implemented.
+
+The one place Docker is relevant: CSV export and the analytics dashboard both read from the same `mongo` container everything else uses, so if you've been poking at submissions directly via `mongosh` (e.g. to generate test data), those changes show up there too.
+
 ## Why `AUTH_TRUST_HOST` is set
 
 You'll notice `docker-compose.yml` sets `AUTH_TRUST_HOST=true` for the `app` service. NextAuth refuses requests from a Host header it doesn't explicitly trust once running in production mode (`next start`, which is what happens inside the container) — this restriction doesn't show up with `npm run dev`, only here. This is documented, expected behavior for a self-hosted single-machine deployment like this one, not a workaround for a bug.
