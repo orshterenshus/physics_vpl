@@ -74,6 +74,7 @@ The final grade is calculated programmatically from the three component scores â
 | Machine | Recommended model |
 |---|---|
 | Strong PC (16GB+ VRAM) | `qwen2.5:14b` |
+| Mid-range PC (8GB+ VRAM) | `qwen2.5:7b` |
 | Laptop / lower RAM | `qwen2.5:3b` |
 
 Pull your chosen model before starting:

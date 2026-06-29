@@ -216,6 +216,7 @@ Ollama is what runs the grading LLM **entirely on your own machine** — no API 
    | Your machine | Recommended model | Approx. download size |
    |---|---|---|
    | Strong PC / workstation (16GB+ VRAM) | `qwen2.5:14b` | ~9 GB |
+   | Mid-range PC (8GB+ VRAM) | `qwen2.5:7b` | ~4.7 GB |
    | Laptop / limited RAM or no dedicated GPU | `qwen2.5:3b` | ~2 GB |
 
    ```bash
