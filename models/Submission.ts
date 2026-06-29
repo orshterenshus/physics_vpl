@@ -18,6 +18,13 @@ export interface ISubmission {
   codingScore: number | null;
   reasoningScore: number | null;
   deductionReasons: IDeductionReasons | null;
+  // A teacher's manual correction, layered on top of the LLM's grade/feedback.
+  // The original grade/feedback above are never overwritten — these are only
+  // used in addition, so the AI's original call is always still visible.
+  overrideGrade: number | null;
+  overrideFeedback: string | null;
+  overriddenBy: string | null;
+  overriddenAt: Date | null;
   createdAt: Date;
 }
 
@@ -40,6 +47,10 @@ const SubmissionSchema = new Schema<ISubmission>(
       },
       default: null,
     },
+    overrideGrade: { type: Number, default: null },
+    overrideFeedback: { type: String, default: null },
+    overriddenBy: { type: String, default: null },
+    overriddenAt: { type: Date, default: null },
   },
   { timestamps: true }
 );
