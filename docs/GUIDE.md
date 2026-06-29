@@ -50,9 +50,13 @@ After logging in, a student lands on `/problems` — every problem in the databa
 
 ### 3. Solving a problem
 
-Clicking a problem opens the main workspace: the problem statement (with rendered LaTeX, e.g. the boxed acceleration formula below) on the left, a Monaco code editor on the right, and the problem's named parameters (here, `A` and `ω`) shown as a quick-reference panel. A bold **"← Back to Problems"** link appears in the header at any time (only while you're actually inside a problem, not on the list itself). Both the left/right split and the editor/output split are **draggable** — note the thin resize handles between panels.
+Clicking a problem opens the main workspace: the problem statement (with rendered LaTeX, e.g. the boxed acceleration formula below) on the left, a Monaco code editor on the right, and the problem's named parameters (here, `A` and `ω`) shown as a quick-reference panel. Both the left/right split and the editor/output split are **draggable** — note the thin resize handles between panels.
 
 ![Problem solver, initial state](screenshots/03-problem-solver.png)
+
+### Back to Problems button
+
+Notice the bold **"← Back to Problems"** link next to the logo in the header in the screenshot above. It only appears while you're actually inside a problem — it's gone again on the bare `/problems` list itself, since it would be pointless there. Click it any time to return to the full problem list without using your browser's back button.
 
 ### 4. Running code
 
