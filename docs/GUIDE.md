@@ -96,6 +96,10 @@ Admins create accounts and generate/regenerate login codes from `/admin`.
 
 ![Admin user management](screenshots/10-admin-users.png)
 
+### Dark / light mode
+
+Every screen in every screenshot above has a sun/moon icon in the header (`ThemeToggle.tsx`) — click it to switch between light and dark mode. The choice is remembered (via `next-themes`, see `ThemeProvider.tsx`) so it persists across page loads and logins; it defaults to whatever your operating system/browser is set to until you toggle it yourself.
+
 ---
 
 ## Technology stack, with exact versions

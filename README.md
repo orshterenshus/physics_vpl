@@ -16,7 +16,8 @@ A web application for physics courses where students write Python code to solve 
 - **Role-based access** — Admin, Teacher, and Student dashboards
 - **Submission history** with per-category score breakdown and actionable feedback
 - **Teacher submissions table** with an expandable row per submission to view the full LLM feedback inline, without leaving the table
-- **Dark / light theme**
+- **Dark / light theme** — toggle with the sun/moon icon in the header, available on every page
+- **"Back to Problems" navigation** — a link in the header while solving a problem, so you're never stuck using the browser's back button
 
 ---
 
@@ -210,6 +211,7 @@ Both flows are handled by the same NextAuth v5 `Credentials` provider (`lib/auth
 - Write and run Python code in the browser
 - Submit for grading — results appear within seconds
 - View score breakdown (physics / coding / reasoning) and feedback
+- Jump back to the problem list anytime with the "Back to Problems" link in the header (only shown while inside a problem)
 
 ### Teacher
 - Create and edit problems with LaTeX descriptions, starter code, and a reference solution
