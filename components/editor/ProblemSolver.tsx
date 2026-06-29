@@ -39,6 +39,8 @@ export function ProblemSolver({ problem }: Props) {
     physicsScore: number | null;
     codingScore: number | null;
     reasoningScore: number | null;
+    overrideGrade: number | null;
+    overrideFeedback: string | null;
   } | null>(null);
 
   const [panelWidth, setPanelWidth] = useState(380);
@@ -191,24 +193,34 @@ export function ProblemSolver({ problem }: Props) {
           </div>
         )}
 
-        {submission && (
+        {submission && (() => {
+          const grade = submission.overrideGrade ?? submission.grade;
+          const feedback = submission.overrideFeedback ?? submission.feedback;
+          return (
           <div className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl p-4 flex flex-col gap-3">
             <div className="flex items-center justify-between">
               <span className="font-semibold text-gray-900 dark:text-white">Grade</span>
-              <span className={`text-2xl font-bold ${
-                (submission.grade ?? 0) >= 70
-                  ? "text-green-600 dark:text-green-400"
-                  : "text-red-600 dark:text-red-400"
-              }`}>
-                {submission.grade !== null ? `${submission.grade}%` : "Still grading…"}
-              </span>
+              <div className="flex items-center gap-2">
+                {submission.overrideGrade !== null && (
+                  <span className="text-xs bg-purple-100 text-purple-700 dark:bg-purple-900 dark:text-purple-300 px-2 py-0.5 rounded font-medium">
+                    Adjusted by teacher
+                  </span>
+                )}
+                <span className={`text-2xl font-bold ${
+                  (grade ?? 0) >= 70
+                    ? "text-green-600 dark:text-green-400"
+                    : "text-red-600 dark:text-red-400"
+                }`}>
+                  {grade !== null ? `${grade}%` : "Still grading…"}
+                </span>
+              </div>
             </div>
-            {submission.grade === null && (
+            {grade === null && (
               <p className="text-xs text-gray-500 dark:text-gray-400">
                 This is taking unusually long. It may still finish in the background — try refreshing this page in a minute, or ask your teacher to check the Submissions page.
               </p>
             )}
-            {submission.grade !== null && (
+            {grade !== null && (
               <div className="grid grid-cols-3 gap-2 text-center text-xs">
                 {([["Physics", submission.physicsScore], ["Code", submission.codingScore], ["Reasoning", submission.reasoningScore]] as [string, number | null][]).map(([label, score]) => (
                   <div key={label} className="bg-gray-100 dark:bg-gray-800 rounded-lg p-2">
@@ -218,15 +230,16 @@ export function ProblemSolver({ problem }: Props) {
                 ))}
               </div>
             )}
-            {submission.grade !== null && (
+            {grade !== null && (
               <div className="prose prose-gray dark:prose-invert prose-sm max-w-none [&_p]:leading-relaxed">
                 <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeRaw, rehypeKatex]}>
-                  {submission.feedback}
+                  {feedback}
                 </ReactMarkdown>
               </div>
             )}
           </div>
-        )}
+          );
+        })()}
       </div>
 
       {/* Drag handle */}

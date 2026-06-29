@@ -20,6 +20,7 @@ export default async function TeacherLayout({ children }: { children: React.Reac
           <nav className="flex gap-4 text-sm text-gray-500 dark:text-gray-400">
             <Link href="/teacher" className="hover:text-gray-900 dark:hover:text-white transition-colors">Problems</Link>
             <Link href="/teacher/submissions" className="hover:text-gray-900 dark:hover:text-white transition-colors">Submissions</Link>
+            <Link href="/teacher/analytics" className="hover:text-gray-900 dark:hover:text-white transition-colors">Analytics</Link>
             <Link href="/admin" className="hover:text-gray-900 dark:hover:text-white transition-colors">Users</Link>
           </nav>
         </div>

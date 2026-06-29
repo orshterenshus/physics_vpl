@@ -39,6 +39,8 @@ export default async function SubmissionsPage({ searchParams }: PageProps) {
       codingScore: s.codingScore ?? null,
       reasoningScore: s.reasoningScore ?? null,
       feedback: s.feedback ?? "",
+      overrideGrade: s.overrideGrade ?? null,
+      overrideFeedback: s.overrideFeedback ?? null,
       createdAt: new Date(s.createdAt).toISOString(),
     };
   });
@@ -47,11 +49,19 @@ export default async function SubmissionsPage({ searchParams }: PageProps) {
     <div className="max-w-5xl mx-auto px-6 py-10">
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-2xl font-bold">Submissions</h1>
-        {problemId && (
-          <Link href="/teacher/submissions" className="text-sm text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white">
-            Clear filter
-          </Link>
-        )}
+        <div className="flex items-center gap-4">
+          <a
+            href={`/api/teacher/submissions/export${problemId ? `?problemId=${problemId}` : ""}`}
+            className="text-sm bg-blue-600 hover:bg-blue-500 text-white rounded-lg px-3 py-1.5 transition-colors"
+          >
+            Export CSV
+          </a>
+          {problemId && (
+            <Link href="/teacher/submissions" className="text-sm text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white">
+              Clear filter
+            </Link>
+          )}
+        </div>
       </div>
       <div className="overflow-x-auto">
         <SubmissionsTable rows={rows} />
