@@ -54,6 +54,10 @@ Clicking a problem opens the main workspace: the problem statement (with rendere
 
 ![Problem solver, initial state](screenshots/03-problem-solver.png)
 
+### Back to Problems button
+
+Notice the bold **"← Back to Problems"** link next to the logo in the header in the screenshot above. It only appears while you're actually inside a problem — it's gone again on the bare `/problems` list itself, since it would be pointless there. Click it any time to return to the full problem list without using your browser's back button.
+
 ### 4. Running code
 
 Clicking **Run** sends the code to the server, which executes it in a real Python process and returns whatever it printed, plus a graph if the code called `set_graph(...)`. Here the student's forward-Euler simulation correctly reproduces the spiral trajectory and prints both the numerical and analytical distance at `t = 7s`.
@@ -95,6 +99,10 @@ Clicking the **+** at the end of any row expands it in place to show that submis
 Admins create accounts and generate/regenerate login codes from `/admin`.
 
 ![Admin user management](screenshots/10-admin-users.png)
+
+### Dark / light mode
+
+Every screen in every screenshot above has a sun/moon icon in the header (`ThemeToggle.tsx`) — click it to switch between light and dark mode. The choice is remembered (via `next-themes`, see `ThemeProvider.tsx`) so it persists across page loads and logins; it defaults to whatever your operating system/browser is set to until you toggle it yourself.
 
 ---
 
@@ -216,6 +224,7 @@ Ollama is what runs the grading LLM **entirely on your own machine** — no API 
    | Your machine | Recommended model | Approx. download size |
    |---|---|---|
    | Strong PC / workstation (16GB+ VRAM) | `qwen2.5:14b` | ~9 GB |
+   | Mid-range PC (8GB+ VRAM) | `qwen2.5:7b` | ~4.7 GB |
    | Laptop / limited RAM or no dedicated GPU | `qwen2.5:3b` | ~2 GB |
 
    ```bash
@@ -368,11 +377,11 @@ Credentials({
 2. **Logging in.** On `/login`, clicking "Admin? Sign in with email & password" swaps the form to email + password fields, calling `signIn("credentials", { email, password, redirect: false })`.
 3. **Not one-time.** Unlike the code flow, a successful password login does **not** clear or change anything — the same password keeps working across as many logins as you want, exactly like a normal account, because there's no equivalent of "an admin handing themselves a fresh code" if they're the only admin and get logged out.
 4. **Changing it.** An existing admin can set a new password for any admin account (including their own) via "Set new password" on the Users page (`POST /api/admin/users/[id]/set-password`).
-5. **Recovery if truly locked out** (no admin left who can log in at all): there's no "forgot password" flow, so the only path is setting a new `passwordHash` directly in the database — see the Docker guide's "Locked out?" section for the exact command if you're running this in Docker; the same idea (set the field directly via `mongosh`) applies to any MongoDB instance.
+5. **Recovery if truly locked out** (no admin left who can log in at all): there's no "forgot password" flow, so the only path is setting a new `passwordHash` directly in the database. `node scripts/reset-admin-password.mjs <email> <new-password>` does exactly that — it reads `MONGODB_URI` from `.env.local`, hashes the password with `bcrypt`, and writes it straight to that user's document. If you're running this in Docker, see the Docker guide's "Locked out?" section for the equivalent `mongosh` command.
 
 ### Forced password change
 
-Every code path that sets an admin's password — `/api/setup`, creating an admin from the Users page, "Set new password," and the Docker recovery script — also sets `mustChangePassword: true` on that user (`models/User.ts`). This flag rides along in the JWT (`lib/auth.config.ts`'s `jwt`/`session` callbacks copy it onto the token alongside `id` and `role`), and every layout (`app/(student)/layout.tsx`, `app/(teacher)/layout.tsx`, `app/(admin)/layout.tsx`) checks it immediately after checking the session exists, redirecting to `/change-password` if it's true — before rendering anything else, regardless of which page was requested.
+Every code path that sets an admin's password — `/api/setup`, creating an admin from the Users page, "Set new password," and the recovery script — also sets `mustChangePassword: true` on that user (`models/User.ts`). This flag rides along in the JWT (`lib/auth.config.ts`'s `jwt`/`session` callbacks copy it onto the token alongside `id` and `role`), and every layout (`app/(student)/layout.tsx`, `app/(teacher)/layout.tsx`, `app/(admin)/layout.tsx`) checks it immediately after checking the session exists, redirecting to `/change-password` if it's true — before rendering anything else, regardless of which page was requested.
 
 `/change-password` (`app/change-password/page.tsx`) is a normal top-level page, not nested in any of those route groups, so there's no redirect loop. Submitting it calls `POST /api/account/change-password`, which hashes the new password and sets `mustChangePassword: false` — but since sessions are JWTs (not re-read from the database on every request), the *existing* token in the browser still has the old `mustChangePassword: true` baked in until a new one is issued. The page works around this by immediately calling `signIn("credentials", ...)` again with the just-set password right after the API call succeeds, which mints a fresh token reflecting the change, then redirects to `/admin`.
 

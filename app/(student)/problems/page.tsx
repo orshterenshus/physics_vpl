@@ -14,6 +14,7 @@ interface ProblemDoc {
 interface SubmissionDoc {
   problemId: string;
   grade: number;
+  overrideGrade: number | null;
   createdAt: Date;
 }
 
@@ -26,14 +27,16 @@ export default async function ProblemsPage() {
   }).lean<ProblemDoc[]>();
 
   const latestGradeByProblem: Record<string, number> = {};
+  const attemptCountByProblem: Record<string, number> = {};
   if (session) {
     const submissions = await Submission.find(
       { studentId: session.user.id, grade: { $ne: null } },
-      { problemId: 1, grade: 1, createdAt: 1 }
+      { problemId: 1, grade: 1, overrideGrade: 1, createdAt: 1 }
     ).sort({ createdAt: -1 }).lean<SubmissionDoc[]>();
     for (const s of submissions) {
       const key = s.problemId.toString();
-      if (!(key in latestGradeByProblem)) latestGradeByProblem[key] = s.grade;
+      attemptCountByProblem[key] = (attemptCountByProblem[key] ?? 0) + 1;
+      if (!(key in latestGradeByProblem)) latestGradeByProblem[key] = s.overrideGrade ?? s.grade;
     }
   }
 
@@ -53,24 +56,36 @@ export default async function ProblemsPage() {
           </h2>
           <div className="flex flex-col gap-2">
             {probs.map((p) => {
-              const grade = latestGradeByProblem[p._id.toString()];
+              const key = p._id.toString();
+              const grade = latestGradeByProblem[key];
+              const attempts = attemptCountByProblem[key] ?? 0;
               return (
-                <Link
-                  key={p._id.toString()}
-                  href={`/problems/${p._id}`}
+                <div
+                  key={key}
                   className="bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 hover:border-blue-500 dark:hover:border-blue-500 rounded-lg px-4 py-3 flex items-center justify-between transition-colors group"
                 >
-                  <span className="font-medium group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                    {p.problemNumber}. {p.title}
-                  </span>
-                  {grade !== undefined ? (
-                    <span className={`text-sm font-bold ${grade >= 70 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
-                      {grade}%
+                  <Link href={`/problems/${key}`} className="flex-1">
+                    <span className="font-medium group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                      {p.problemNumber}. {p.title}
                     </span>
-                  ) : (
-                    <span className="text-gray-400 dark:text-gray-500 text-sm">Solve</span>
-                  )}
-                </Link>
+                  </Link>
+                  <div className="flex items-center gap-3">
+                    {attempts > 0 && (
+                      <Link href={`/problems/${key}/history`} className="text-xs text-gray-400 hover:text-blue-600 dark:hover:text-blue-400">
+                        History ({attempts})
+                      </Link>
+                    )}
+                    <Link href={`/problems/${key}`}>
+                      {grade !== undefined ? (
+                        <span className={`text-sm font-bold ${grade >= 70 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
+                          {grade}%
+                        </span>
+                      ) : (
+                        <span className="text-gray-400 dark:text-gray-500 text-sm">Solve</span>
+                      )}
+                    </Link>
+                  </div>
+                </div>
               );
             })}
           </div>
