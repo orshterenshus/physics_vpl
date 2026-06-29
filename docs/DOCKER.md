@@ -1,124 +1,52 @@
-# Running Physics VPL with Docker — A No-Coding-Experience Guide
+# Running Physics VPL with Docker Compose
 
-This guide assumes you've never used a terminal, never written code, and don't know what "Docker" means. By the end, you'll have the whole app running on your computer, reachable in your web browser at `http://localhost:3000`.
+This is the "send it to someone and they run one command" path. It bundles **everything** — the Next.js app, Python + NumPy, MongoDB, and Ollama itself — into containers, so the only thing a recipient needs pre-installed is [Docker Desktop](https://www.docker.com/products/docker-desktop/). No Node, no Python, no MongoDB Atlas account, no manually installing Ollama.
 
-If you already know what Docker, terminals, and environment variables are, you can skim — but every term here is explained the first time it's used, on purpose, so don't worry if something sounds obvious.
+The one thing this **can't** fully paper over is the LLM model choice: different machines can realistically run different model sizes (a 14B-parameter model needs a strong GPU to be fast; a 3B model runs tolerably on CPU alone). That's handled with one environment variable, explained below — not a rebuild.
 
-## What you're actually installing
+## Where to run these commands
 
-This project ("Physics VPL") is a website where students solve physics problems by writing Python code, and a program grades them automatically using a local AI model. Normally, getting this running would mean installing five or six separate pieces of software yourself (a JavaScript runtime, a database, an AI model server, etc.) and making sure they all talk to each other correctly.
+Every command on this page (`docker compose up`, `docker compose logs ...`, etc.) goes in a **regular terminal on your own machine** — PowerShell, Command Prompt, or Git Bash on Windows, Terminal on macOS/Linux. Open it and `cd` into the folder where you cloned the project first.
 
-**Docker** avoids all of that. Think of it like a shipping container (that's literally where the name comes from): instead of installing each piece of software directly onto your computer, each piece runs inside its own sealed "container" — a self-contained little package that already has everything it needs inside it. Your computer just needs one program, **Docker Desktop**, that knows how to run these containers. You never install Python, databases, or anything else by hand.
+This isn't a one-time thing — **every single `docker compose ...` command on this page must be executed while your terminal's current directory is that project folder** (the one containing `docker-compose.yml`), not just the first one. If you open a new terminal window/tab later, or `cd` somewhere else in between, `cd` back into the project folder before running the next `docker compose` command — otherwise it won't find `docker-compose.yml` and will either fail outright or (if you have other compose projects) target the wrong one entirely.
 
-## What you need before starting
+This is **not** the same as the terminal *inside* Docker Desktop's UI (the `>_` "Exec" button you get by clicking on a running container). That one opens a shell *inside one specific container* — useful for poking around inside it directly (e.g. running `mongosh` by hand), but `docker compose` itself isn't installed inside any container; it's a tool on your host machine that starts and orchestrates all of them from outside. Don't run the commands below in that container Exec terminal — they won't work there.
 
-Just one thing: **Docker Desktop**.
-
-1. Go to [docker.com/products/docker-desktop](https://www.docker.com/products/docker-desktop/) in your web browser.
-2. Download the version for your operating system (Windows, Mac, or Linux) and run the installer like you would for any other program.
-3. Once it's installed, open it (you'll see a whale icon). Leave it running in the background — you'll need it open the whole time you're using this app. The first time you open it, it might take a minute or two to fully start; you'll know it's ready when the whale icon in your system tray/menu bar stops animating or the Docker Desktop window shows "Engine running" somewhere.
-
-That's the only software you need to install yourself.
-
-## A few words you'll see below, explained once
-
-- **Terminal**: a plain text window where you type commands and press Enter, instead of clicking icons. On Windows, the easiest one to use is **PowerShell**. To open it: click the Start menu, type `PowerShell`, and click the result called "Windows PowerShell." A black or blue window with text will open — that's it, that's the terminal.
-- **Command**: a line of text you type into the terminal and press Enter to run. Every gray code box below is something you're meant to type (or copy and paste) into that terminal window.
-- **Folder / directory**: same thing, just two names for it — a place on your computer where files are stored. "The project folder" means wherever you save this project's files.
-- **`cd`**: short for "change directory." It's the command you use to tell the terminal which folder to work in. You'll use it once near the start.
-- **Settings file (`.env`)**: a small plain-text file that holds a handful of values the program reads when it starts — things like "what should the admin's password be." You'll edit this once before starting anything. More on this below.
-
-## Step 1 — Get the project's files onto your computer
-
-If you have the project folder already (someone gave it to you, or you downloaded it as a ZIP and extracted it), skip to Step 2.
-
-Otherwise, open a terminal (see above) and run:
+## Quick start
 
 ```bash
 git clone https://github.com/orshterenshus/physics_vpl.git
-```
-
-This copies the whole project onto your computer into a new folder named `physics_vpl`, created wherever your terminal currently is (usually your user folder, e.g. `C:\Users\YourName\physics_vpl`).
-
-> If you don't have `git` installed and don't want to install it, you can instead go to the project's GitHub page in your browser, click the green "Code" button, choose "Download ZIP," and extract the ZIP file anywhere on your computer. Either way gets you the same files.
-
-## Step 2 — Tell the terminal where the project folder is
-
-Every command in this guide needs to be run **while the terminal is "inside" the project folder**. Right after cloning/extracting, type:
-
-```bash
 cd physics_vpl
-```
-
-(If you downloaded a ZIP and extracted it somewhere specific, use the actual path instead, e.g. `cd C:\Users\YourName\Downloads\physics_vpl`.)
-
-**Important:** if you close the terminal and open a new one later, you'll need to run this `cd` command again before running any other command in this guide. The terminal doesn't remember where you were last time.
-
-## Step 3 — Create your settings file
-
-The project comes with a template settings file called `.env.example`. You need to make your own copy of it named `.env` (just `.env`, nothing else) — this copy is where your personal settings go, and it's never shared or uploaded anywhere.
-
-```bash
 cp .env.example .env
 ```
 
-Now open the new `.env` file in any plain text editor (Notepad works fine — right-click the file in your project folder and choose "Open with" → Notepad, or just open it from inside VS Code if you have that).
+Open `.env` in any text editor and set `AUTH_SECRET` to a random string. To generate one, type this command in the same terminal (cmd, PowerShell, or whatever you used for the commands above) and press Enter:
 
-Here's exactly what's in it and what each line means:
-
-```env
-AUTH_SECRET=
-
-OLLAMA_MODEL=qwen2.5:3b
-
-NEXTAUTH_URL=http://localhost:3000
-
-ADMIN_NAME=Admin
-ADMIN_EMAIL=admin
-ADMIN_PASSWORD=admin
+```bash
+openssl rand -base64 32
 ```
 
-**`AUTH_SECRET=`** — leave nothing here and the app won't start; it needs *some* long random text on this line. This value is used internally to keep login sessions secure — you'll never need to type it or remember it, it just needs to exist. The easiest way to fill it in:
-- If you have a terminal handy, run `openssl rand -base64 32` and paste whatever it prints after the `=` sign.
-- If that command doesn't exist on your computer, you can instead just mash your keyboard for 40-ish random characters (letters, numbers, symbols) — anything long and random works. For example: `AUTH_SECRET=kJ8x!mQ2pL9vR4tY7wZ3nB6cF1hD5sA0gE`
+It'll print a random string directly in the terminal — copy that and paste it after `AUTH_SECRET=` in `.env`. (If your terminal says it doesn't recognize `openssl`, just type any long random string of letters/numbers yourself instead — it doesn't need to come from that specific command, it just needs to be long and random.)
 
-**`OLLAMA_MODEL=qwen2.5:3b`** — this picks which AI model grades the students' work. Leave it exactly as `qwen2.5:3b` unless you know your computer has a powerful graphics card (GPU). This default works on basically any computer, including ones with no dedicated graphics card at all — it'll just take a bit longer per submission. (See [Picking a different AI model](#picking-a-different-ai-model-optional) below if you do have a strong GPU and want better grading quality.)
-
-**`NEXTAUTH_URL=http://localhost:3000`** — leave this exactly as-is. It just tells the app what its own web address is. ("localhost" means "this same computer.")
-
-**`ADMIN_NAME=Admin`**, **`ADMIN_EMAIL=admin`**, **`ADMIN_PASSWORD=admin`** — these create your first teacher/administrator login automatically. Leave all three exactly as they are — yes, even though `admin`/`admin` looks like a weak password, it's safe here on purpose: the very first time you actually log in with it, the app will force you to immediately replace it with a real password before letting you do anything else. There's no benefit to picking something now.
-
-Save the file and close your text editor.
-
-## Step 4 — Start everything
-
-Back in your terminal (making sure you've `cd`'d into the project folder — see Step 2 if you opened a new terminal window), run:
+Leave `ADMIN_EMAIL`/`ADMIN_PASSWORD` as the default `admin`/`admin` — you'll be forced to replace it with a real password the first time you actually log in, so there's no need to pick one now (see below). Leave `OLLAMA_MODEL` as the default too unless you know your machine has a strong GPU (see [Choosing a model](#choosing-a-model) below).
 
 ```bash
 docker compose up -d --build
 ```
 
-What this does, in plain terms: Docker reads the project's instructions and builds/downloads everything it needs — the website itself, the database, and the AI model server — then starts them all running in the background. You'll see a lot of text scroll by; that's normal.
-
-**This first run takes a while** — anywhere from a few minutes to 15+ minutes depending on your internet speed, because it needs to download the AI model (a few gigabytes). Subsequent starts are much faster since everything's already downloaded.
-
-To watch the AI model's download progress specifically:
+First run will take a while — it builds the app image, downloads the `mongo` and `ollama` base images, and downloads the model itself (a few GB). Watch progress with:
 
 ```bash
 docker compose logs -f ollama-pull
 ```
 
-(This will keep printing updates. When it's done, press `Ctrl+C` to stop watching — that doesn't stop the actual program, just this progress display.)
-
-## Step 5 — Check that your admin account was created
-
-Run:
+The example problems (Particle Trajectory, Bouncing Ball, etc.) are inserted automatically by the `seed` service, and a first admin account is created automatically by the `bootstrap-admin` service — neither needs a manual command. Its sign-in details come straight from `.env`: `ADMIN_EMAIL` and `ADMIN_PASSWORD`. Confirm it worked with:
 
 ```bash
 docker compose logs bootstrap-admin
 ```
 
-You should see something like:
+which prints something like:
 
 ```
 ========================================================
@@ -130,123 +58,100 @@ first time you log in.
 ========================================================
 ```
 
-If you see that, you're ready for the next step. If instead it says something about "Setup already completed," that's also fine — it just means this step already ran successfully before (e.g. you restarted the app).
+This account is **admin** (the highest of the three roles — `student` / `teacher` / `admin`), not "teacher." Admin includes every teacher capability (creating/editing problems, viewing all submissions) plus user management, so you can do everything a teacher can right away, and also create teacher, student, and additional admin accounts from the `/admin` page.
 
-## Step 6 — Open the app and log in
+Open [http://localhost:3000/login](http://localhost:3000/login), click "Admin? Sign in with email & password," and sign in with `admin` / `admin` (or whatever you set `ADMIN_EMAIL`/`ADMIN_PASSWORD` to). The username field accepts a plain word like `admin`, not just real email addresses. The moment you sign in, every page redirects you to set a real password (8+ characters) before you can do anything else — the original `admin`/`admin` stops working as soon as you save the new one. After that, log in with the new password as many times as you want; unlike student/teacher login codes, it doesn't expire on use. Change it again any time from the Users page ("Set new password"), including for your own account.
 
-Open your web browser and go to:
+If you ever re-run `docker compose up` after an admin already exists, `bootstrap-admin`'s logs will just say so and exit — it won't create a second account or touch the existing one (see [Locked out?](#locked-out) if you need to reset a password instead).
 
-```
-http://localhost:3000
-```
+## What's actually running
 
-You'll land on a login page. Click the small link that says **"Admin? Sign in with email & password."** Type:
+`docker compose up` starts containers on a private network Compose creates automatically, where each one can reach the others by service name:
 
-- Email/username: `admin`
-- Password: `admin`
-
-(Or whatever you set `ADMIN_EMAIL`/`ADMIN_PASSWORD` to in Step 3, if you changed them.)
-
-The moment you sign in, the app will immediately ask you to set a real password — type one (at least 8 characters) and confirm it. From that point on, `admin`/`admin` stops working entirely, and you log in with your new password instead, for as long as you want, as many times as you want.
-
-**You're done.** You're now signed in as an admin, which means you can create accounts for your students and teachers, create problems, and review submissions.
-
-## Stopping and restarting later
-
-When you're done for the day, you can leave it running, or stop it:
-
-```bash
-docker compose down
-```
-
-This stops everything but keeps all your data (accounts, problems, submissions) saved. Next time you want to use the app again, just run:
-
-```bash
-docker compose up -d
-```
-
-(No `--build` needed this time — that's only for the very first start, or after the project's code itself changes.)
-
----
-
-## Everything below this line is for people who want more detail
-
-The rest of this document goes deeper into how things work, for anyone curious or for fixing problems that go beyond "it's not starting." You don't need to read any of it to use the app day to day.
-
-### Where exactly to type these commands
-
-Every command in this guide goes in a **regular terminal on your own computer** — PowerShell, Command Prompt, or Git Bash on Windows; Terminal on macOS/Linux. This is different from the small terminal-like window *inside* the Docker Desktop app itself (the one you get by clicking a running container and then an "Exec" button) — that one is for looking inside one specific container, and the commands on this page won't work there.
-
-### What's actually running
-
-`docker compose up` starts several containers that can all talk to each other:
-
-| Container | What it is |
-|---|---|
-| `app` | The website itself (reachable at `http://localhost:3000` in your browser) |
-| `mongo` | The database that stores accounts, problems, and submissions |
-| `ollama` | The AI model server that grades submissions |
-| `ollama-pull` | Runs once at startup to download the AI model, then stops itself |
-| `seed` | Runs once at startup to add the example physics problems, then stops itself |
-| `bootstrap-admin` | Runs once at startup to create your first admin account from the `.env` file, then stops itself |
-
-Two of these (`mongo` and `ollama`) keep their data saved on your computer even if you stop everything, so you don't lose your database or have to re-download the AI model.
-
-### Picking a different AI model (optional)
-
-| Your computer | Set `OLLAMA_MODEL` in `.env` to | Notes |
+| Service | What it is | Reachable at |
 |---|---|---|
-| No dedicated graphics card, or not sure | `qwen2.5:3b` (the default — leave it as-is) | Works everywhere, grading just takes a little longer per submission |
-| A mid-range graphics card (8GB+ of video memory) | `qwen2.5:7b` | Better grading quality than the 3B model, without needing a top-tier graphics card |
-| A strong graphics card (16GB+ of video memory) | `qwen2.5:14b` | The best grading quality, but needs real GPU power to run at a reasonable speed |
+| `app` | This repo, built from the `Dockerfile` (Next.js + a Python3/NumPy runtime for grading code execution) | `http://localhost:3000` from your browser |
+| `mongo` | Official `mongo:7` image | `mongo:27017` from inside the network; also `localhost:27017` from your host (bound to `127.0.0.1` only) so you can inspect it with `mongosh`/Compass if you want |
+| `ollama` | Official `ollama/ollama` image — the actual LLM inference server | `http://localhost:11434` (exposed mainly so you can run `ollama` CLI commands against it directly if you want) |
+| `ollama-pull` | One-shot — runs once, downloads the model named in `OLLAMA_MODEL`, then exits | — |
+| `seed` | One-shot — runs once, inserts the example problems, then exits. Safe to re-run (it clears those chapters first, so it never duplicates) | — |
+| `bootstrap-admin` | One-shot — waits for `app` to be healthy, then creates the first admin account from `ADMIN_NAME`/`ADMIN_EMAIL`/`ADMIN_PASSWORD` in `.env` | — |
 
-To switch models on a setup that's already running: edit the `OLLAMA_MODEL` line in `.env`, save the file, then run `docker compose up -d` again. You don't need to rebuild anything or repeat the earlier steps — it'll just download the new model and start using it.
+Two named volumes (`mongo_data`, `ollama_data`) persist the database and the downloaded model(s) across restarts, so you only download the model once.
 
-#### Using your graphics card (NVIDIA only)
+There's no Mongo username/password configured — `mongo` isn't reachable from anywhere except this machine and the other containers, so for a local single-user setup like this, authentication adds little real protection. If you ever deploy this somewhere more exposed than your own machine, add one.
 
-By default, the AI model runs using your computer's processor (CPU) rather than its graphics card, which is slower but guaranteed to work on any machine. If you have an NVIDIA graphics card and want faster grading:
+## Choosing a model
 
-1. Install the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html).
-2. Open `docker-compose.yml` in a text editor, find the lines starting with `#` under the `ollama` section that mention `nvidia`, and remove the `#` from the start of each of those lines (this is called "uncommenting" them).
-3. Run `docker compose up -d` again.
+| Your machine | Set `OLLAMA_MODEL` to | Notes |
+|---|---|---|
+| No dedicated GPU / unsure | `qwen2.5:3b` (the default) | Runs on CPU. Grading will take longer per submission than a GPU setup, but it works on essentially any machine. |
+| Mid-range NVIDIA GPU (8GB+ VRAM) | `qwen2.5:7b` | A good middle ground — noticeably better grading quality than the 3B model, without needing as much VRAM as the 14B one. Still benefits from the GPU setup below. |
+| Has a strong NVIDIA GPU (16GB+ VRAM) | `qwen2.5:14b` | Significantly better grading quality. Requires the extra GPU setup below — without it, a 14B model on CPU alone will be very slow. |
 
-There's no equivalent for AMD graphics cards or Apple computers today — those always use the CPU.
+To change the model on a machine that's already running: edit `OLLAMA_MODEL` in `.env`, then run `docker compose up -d` again. Compose detects that the `ollama-pull` and `app` services' configuration changed and recreates only those two — it pulls the new model and restarts the app pointed at it. **No `--build` and no image rebuild needed** — the model name is a runtime setting, never baked into any image.
 
-### Common commands, explained
+### Enabling GPU acceleration (NVIDIA only)
+
+By default, Ollama runs on CPU inside the container — this is what makes the setup work on literally any machine, with the tradeoff of slower inference. If the host has an NVIDIA GPU:
+
+1. Install the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) on the host (on Windows, this means using Docker Desktop with the WSL2 backend, which has GPU passthrough support built in once the toolkit is installed in your WSL2 distro).
+2. In `docker-compose.yml`, uncomment the `deploy.resources.reservations.devices` block under the `ollama` service.
+3. `docker compose up -d` again.
+
+There's no AMD/Apple Silicon GPU passthrough equivalent for Docker containers today — on those machines, CPU inference (the default) is the only option inside a container, regardless of model size chosen.
+
+## Why `AUTH_TRUST_HOST` is set
+
+You'll notice `docker-compose.yml` sets `AUTH_TRUST_HOST=true` for the `app` service. NextAuth refuses requests from a Host header it doesn't explicitly trust once running in production mode (`next start`, which is what happens inside the container) — this restriction doesn't show up with `npm run dev`, only here. This is documented, expected behavior for a self-hosted single-machine deployment like this one, not a workaround for a bug.
+
+## Common commands
 
 ```bash
-docker compose ps              # shows what's currently running
-docker compose logs -f app      # shows the website's own activity log, updating live
-docker compose down             # stops everything (your data is kept safe)
-docker compose down -v          # stops everything AND erases the database + downloaded AI model — only use this if you genuinely want to start completely fresh
+docker compose ps              # see what's running
+docker compose logs -f app      # tail the Next.js app's logs
+docker compose down             # stop everything (data is preserved in volumes)
+docker compose down -v          # stop everything AND delete the database + downloaded models
+
+# Look up every user's role and (for students/teachers) current login code:
+docker compose exec mongo mongosh physics-lab --quiet --eval \
+  'db.users.find({}, {name:1, email:1, role:1, loginCode:1}).forEach(u => print(JSON.stringify(u)))'
 ```
 
-### If you ever get locked out of every account
+## Locked out?
 
-This shouldn't normally happen, but here's the fix for each scenario:
+Recall: students/teachers use a one-time **code**; admins use an **email + password** that doesn't expire on use (deliberately — an admin locked out with nobody else around to issue them a fresh code would otherwise have no way back in at all). What "locked out" means — and the fix — differs depending on which one got stuck.
 
-**A student or teacher's one-time code was already used, and no admin can log in to give them a new one.** Run this, replacing the email and making up any code you like:
+### A student/teacher's code was already used (and no admin is around to issue a new one)
+
+Their `loginCode` is `null` in the database the instant they log in once. Normally an admin would click "New code" for them on the Users page — but if nobody can currently log in to do that, set one directly:
 
 ```bash
 docker compose exec mongo mongosh physics-lab --quiet --eval \
-  "db.users.updateOne({email: 'the-persons-email@example.com'}, {\$set: {loginCode: 'NEWCODE1'}})"
+  "db.users.updateOne({email: 'the-locked-out-user@example.com'}, {\$set: {loginCode: 'NEWCODE1'}})"
 ```
 
-Then that person can log in with `NEWCODE1` (or whatever you chose) at the login page.
+Replace the email, and `NEWCODE1` with anything you want (it's uppercased automatically on login regardless of case). Then log in with it at `/login` like normal.
 
-**Every admin account is locked out and nobody can sign in at all.** Run this, replacing the email and choosing a new password:
+### An admin can't log in (forgot the password, or it was never set correctly)
+
+A password can't be reset with a plain `mongosh $set` the way a code can — it's stored as a bcrypt hash, not the plaintext, so there's no "just set the field to something" shortcut. Use the dedicated reset script instead, which reuses the same image `bootstrap-admin` is already built from:
 
 ```bash
 docker compose run --rm bootstrap-admin node scripts/docker-reset-admin-password.mjs you@example.com a-new-password
 ```
 
-You'll be asked to set yet another new password the moment you actually log in with it — that's expected, same as the very first `admin`/`admin` login.
+This works even if `bootstrap-admin` already ran and exited earlier — `docker compose run` starts a fresh one-off container from that service's image regardless. If you're not sure of the email, look it up first with the command above (`role: "admin"` rows). Like every other way of setting an admin's password, this also forces a password change on next login — you'll land on `/change-password` immediately after signing in with the password you just set here, and need to replace it before doing anything else.
 
-### If something doesn't work
+### Nobody — not even one user — exists at all
 
-| What you're seeing | What's likely going on |
+This shouldn't normally happen once `bootstrap-admin` has run successfully once, but if the database was wiped (`docker compose down -v`) without a subsequent `docker compose up`, just bring the stack up again — `bootstrap-admin` creates the first admin automatically from `ADMIN_EMAIL`/`ADMIN_PASSWORD` in `.env`.
+
+## Troubleshooting
+
+| Symptom | Cause |
 |---|---|
-| The website won't load at `http://localhost:3000` at all | Give it another minute — the database might still be starting up. Check `docker compose ps` to see if everything says "healthy" |
-| Grading a submission takes a long time, or the page says it's "still working" | Normal on computers without a strong graphics card. It can take a minute or more — the page will keep checking and update itself when it's done, you don't need to refresh |
-| `docker compose up` fails immediately with an error about a connection or a pipe | Docker Desktop itself isn't fully started yet — open it, wait for the whale icon to settle, then try again |
-| The AI model download seems stuck | Check your internet connection — the model is a few gigabytes, so a slow connection will just take longer. Watch progress with `docker compose logs -f ollama-pull` |
+| `app` container keeps restarting, logs show a Mongo connection error | `mongo` hasn't finished its healthcheck yet — Compose's `depends_on: condition: service_healthy` should already wait for this, but on a very slow first boot give it another minute and check `docker compose ps` |
+| Grading never finishes / `ollama-pull` logs show download stuck | Slow internet — the model is several GB. Check progress with `docker compose logs -f ollama-pull` |
+| `docker compose up` fails immediately with an API/pipe connection error | Docker Desktop itself isn't running yet — start it and wait for it to fully launch before retrying |
+| Grading is extremely slow (a minute or more per submission) | Expected on CPU-only inference with no GPU passthrough configured, especially with the 14B model. Switch to `qwen2.5:3b`, or set up GPU passthrough — see above. The submit page polls for up to 5 minutes and shows a "still working" message past 60 seconds, so this no longer looks stuck at "Pending..." the way it used to — if you're still on an older build where it does, pull the latest. |
