@@ -4,6 +4,7 @@ import { Submission } from "@/models/Submission";
 import { Problem } from "@/models/Problem";
 import { User } from "@/models/User";
 import { auth } from "@/lib/auth";
+import { buildCreatedAtFilter } from "@/lib/dateRangeQuery";
 
 function csvField(value: string | number): string {
   const s = String(value);
@@ -26,7 +27,13 @@ export async function GET(req: Request) {
   await connectDB();
   const { searchParams } = new URL(req.url);
   const problemId = searchParams.get("problemId");
-  const query = problemId ? { problemId, grade: { $ne: null } } : { grade: { $ne: null } };
+  const from = searchParams.get("from");
+  const to = searchParams.get("to");
+
+  const query: Record<string, unknown> = { grade: { $ne: null } };
+  if (problemId) query.problemId = problemId;
+  const createdAt = buildCreatedAtFilter(from, to);
+  if (createdAt) query.createdAt = createdAt;
   const submissions = await Submission.find(query).sort({ createdAt: -1 }).lean();
 
   const problemIds = [...new Set(submissions.map((s) => s.problemId.toString()))];
