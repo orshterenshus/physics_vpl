@@ -34,7 +34,7 @@ export function SubmissionHistory({ rows }: { rows: HistoryRow[] }) {
               className="w-full flex items-center justify-between px-4 py-3 text-left"
             >
               <span className="text-sm text-gray-500 dark:text-gray-400">
-                {new Date(s.createdAt).toLocaleString()}
+                {new Date(s.createdAt).toLocaleString("en-US", { timeZone: "UTC" })}
               </span>
               <div className="flex items-center gap-3">
                 {s.overrideGrade !== null && (

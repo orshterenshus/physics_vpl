@@ -111,7 +111,7 @@ export function SubmissionsTable({ rows: initialRows }: { rows: SubmissionRow[] 
                 <td className="py-3 pr-4 text-gray-500 dark:text-gray-400">{s.codingScore ?? "—"}</td>
                 <td className="py-3 pr-4 text-gray-500 dark:text-gray-400">{s.reasoningScore ?? "—"}</td>
                 <td className="py-3 pr-4 text-gray-400 dark:text-gray-500 text-xs">
-                  {new Date(s.createdAt).toLocaleDateString()}
+                  {new Date(s.createdAt).toLocaleDateString("en-US", { timeZone: "UTC" })}
                 </td>
                 <td className="py-3 text-right">
                   {s.feedback && (
