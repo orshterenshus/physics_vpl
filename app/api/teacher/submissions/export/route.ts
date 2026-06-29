@@ -11,6 +11,13 @@ function csvField(value: string | number): string {
   return s;
 }
 
+// "2026-06-28 12:15:47" instead of the raw ISO "2026-06-28T12:15:47.688Z" —
+// easier to read in a spreadsheet, still UTC and still sortable as plain text.
+function formatDate(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}`;
+}
+
 export async function GET(req: Request) {
   const session = await auth();
   if (!session || !["teacher", "admin"].includes(session.user.role)) {
@@ -31,7 +38,7 @@ export async function GET(req: Request) {
   const problemMap = Object.fromEntries(problems.map((p) => [p._id.toString(), p]));
   const studentMap = Object.fromEntries(students.map((s) => [s._id.toString(), s]));
 
-  const header = ["Student", "Email", "Problem", "Grade", "Physics", "Code", "Reasoning", "Overridden", "Submitted"];
+  const header = ["Student", "Email", "Problem", "Grade", "Physics", "Code", "Reasoning", "Overridden", "Submitted (UTC)"];
   const lines = [header.map(csvField).join(",")];
   for (const s of submissions) {
     const student = studentMap[s.studentId.toString()];
@@ -47,7 +54,7 @@ export async function GET(req: Request) {
         s.codingScore ?? "",
         s.reasoningScore ?? "",
         s.overrideGrade !== null ? "Yes" : "No",
-        new Date(s.createdAt).toISOString(),
+        formatDate(new Date(s.createdAt)),
       ]
         .map(csvField)
         .join(",")
