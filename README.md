@@ -212,12 +212,16 @@ Both flows are handled by the same NextAuth v5 `Credentials` provider (`lib/auth
 - Submit for grading — results appear within seconds
 - View score breakdown (physics / coding / reasoning) and feedback
 - Jump back to the problem list anytime with the "Back to Problems" link in the header (only shown while inside a problem)
+- Open "History (n)" next to any attempted problem to see every past submission for it, oldest details collapsed and expandable
 
 ### Teacher
 - Create and edit problems with LaTeX descriptions, starter code, and a reference solution
 - Add evaluation hints that guide the LLM grader
 - View all graded student submissions, with score breakdown per category — submissions still pending grading are excluded from this view
 - Click the **+** at the end of a submission row to expand it and read the full structured LLM feedback inline
+- Filter the Submissions page by problem and/or date range, and export the filtered results as CSV
+- Override the AI's grade and/or feedback on any submission, and revert back to the AI's original call at any time
+- View class-wide analytics: average grade per problem and the most commonly missing reasoning aspects
 
 ### Admin
 - All teacher permissions
@@ -281,6 +285,38 @@ To keep this reliable with a small local model emitting constrained JSON, the pr
 - No backslash LaTeX commands (`\sin`, `\omega`, `\text{...}`) — a stray unescaped backslash corrupts the JSON string. Greek letters are written as literal Unicode glyphs (ω, θ, Δ) instead.
 - No `text{...}` wrapper without a backslash (renders as garbled adjacent letters in KaTeX).
 - No accent/combining characters for unit-vector "hat" notation (e.g. x̂) — KaTeX throws a parse error on malformed accents, which previously left submissions stuck on "Pending" in the UI even though grading had completed successfully server-side.
+
+---
+
+## Teacher Tools
+
+Four features round out the teacher/admin side of the app: filtering and exporting submissions, manually overriding a grade, browsing a student's submission history, and a class-wide analytics dashboard.
+
+### Filter and export submissions
+
+The Submissions page (`/teacher/submissions`) has a filter bar for problem and date range. "Export CSV" downloads exactly the filtered set — same query, same rows, as a CSV file with a human-readable `Submitted (UTC)` column.
+
+![Submissions page with filters and export button](docs/images/teacher-submissions.png)
+
+### Manual grade override
+
+Click **+** to expand any row, then **Override grade** to set a corrected grade and/or feedback. The AI's original grade and feedback are never deleted — only layered over — so the original call is always recoverable via **Clear override**. Anywhere a grade or feedback is shown to the student (problem list, problem page, submission history) it reflects the override when one exists, with a purple **Adjusted** badge marking it as teacher-corrected.
+
+![Expanded submission showing the override link](docs/images/teacher-submission-expanded.png)
+
+![Override form with grade and feedback fields](docs/images/teacher-override-form.png)
+
+### Submission history (student-facing)
+
+Students see a "History (n)" link next to any problem they've attempted more than once, showing every past submission for that problem with its grade and an expandable feedback panel — handy for resubmissions and revisiting a teacher's override.
+
+![Student viewing their submission history for one problem](docs/images/student-history.png)
+
+### Analytics dashboard
+
+`/teacher/analytics` shows a horizontal bar chart of the average grade per problem, a per-problem breakdown table (submission count, average grade, average physics/coding/reasoning, and how many submissions are below 70%), and a best-effort count of which reasoning aspects are most often missing — parsed from the LLM's free-text deduction reasons, so it's labelled "Approximate" rather than an exact structured count.
+
+![Analytics dashboard with chart and breakdown table](docs/images/teacher-analytics.png)
 
 ---
 
