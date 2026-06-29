@@ -78,6 +78,7 @@ There's no Mongo username/password configured — `mongo` isn't reachable from a
 | Your machine | Set `OLLAMA_MODEL` to | Notes |
 |---|---|---|
 | No dedicated GPU / unsure | `qwen2.5:3b` (the default) | Runs on CPU. Grading will take longer per submission than a GPU setup, but it works on essentially any machine. |
+| Mid-range NVIDIA GPU (8GB+ VRAM) | `qwen2.5:7b` | A good middle ground — noticeably better grading quality than the 3B model, without needing as much VRAM as the 14B one. Still benefits from the GPU setup below. |
 | Has a strong NVIDIA GPU (16GB+ VRAM) | `qwen2.5:14b` | Significantly better grading quality. Requires the extra GPU setup below — without it, a 14B model on CPU alone will be very slow. |
 
 To change the model on a machine that's already running: edit `OLLAMA_MODEL` in `.env`, then run `docker compose up -d` again. Compose detects that the `ollama-pull` and `app` services' configuration changed and recreates only those two — it pulls the new model and restarts the app pointed at it. **No `--build` and no image rebuild needed** — the model name is a runtime setting, never baked into any image.
