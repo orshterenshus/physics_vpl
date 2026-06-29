@@ -291,19 +291,17 @@ Open [http://localhost:3000](http://localhost:3000). You'll be redirected to `/l
 
 ### Step 8 — Bootstrap the first admin account
 
-There is intentionally no "sign up" page (this app is invite-only by design — a teacher/admin always creates accounts for people, nobody self-registers). The very first account has to be created through a one-time API call, since at that point no admin exists yet to use the normal "create user" UI.
+There is intentionally no "sign up" page (this app is invite-only by design — a teacher/admin always creates accounts for people, nobody self-registers). The very first account has to be created through a bootstrap script, since at that point no admin exists yet to use the normal "create user" UI.
 
-With the dev server running, in a separate terminal:
+In a terminal, from the project root:
 
 ```bash
-curl -X POST http://localhost:3000/api/setup \
-  -H "Content-Type: application/json" \
-  -d "{\"name\": \"Your Name\", \"email\": \"you@example.com\", \"password\": \"choose-a-real-password\"}"
+node scripts/bootstrap-admin.mjs
 ```
 
-This only works **once** — the moment any user exists in the database, this endpoint permanently refuses (`403 Setup already complete`).
+This reads `MONGODB_URI` straight from `.env.local` and inserts the first admin directly — no running dev server required. It defaults to email `admin` and password `admin` (the same default the Docker setup uses), or pass `ADMIN_NAME`/`ADMIN_EMAIL`/`ADMIN_PASSWORD` as environment variables to choose your own. It's safe to re-run: it checks `User.countDocuments()` first and does nothing if any user already exists, the same guard `/api/setup` uses internally.
 
-Go to `http://localhost:3000/login`, click "Admin? Sign in with email & password," and sign in with that email and password. Unlike student/teacher login codes, this isn't one-time — the same password keeps working across logins, same as any normal account. From here on, use the `/admin` Users page to create every other account (teachers, students, or more admins) — see [Authentication](#authentication-in-detail) for exactly how both login flows work.
+Go to `http://localhost:3000/login`, click "Admin? Sign in with email & password," and sign in with `admin` / `admin` (or whatever you set). Because this account was created with `mustChangePassword: true`, you'll be redirected straight to `/change-password` and forced to set a real password (8+ characters) before doing anything else — the original `admin`/`admin` stops working the instant the new one is saved. After that, the same password keeps working across logins, same as any normal account — no one-time codes. From here on, use the `/admin` Users page to create every other account (teachers, students, or more admins) — see [Authentication](#authentication-in-detail) for exactly how both login flows work.
 
 ### Step 9 — (Optional) Seed example problems
 
@@ -367,7 +365,7 @@ Credentials({
 
 ### Admin: email + password
 
-1. **Setting a password.** The very first admin is created by `POST /api/setup` with `{ name, email, password }` — there's no UI for this one (nobody is logged in yet to use one), so it's a single bootstrap API call. Every other admin is created from the Users page exactly like a student/teacher, just with a password field shown instead of triggering a generated code (`app/api/admin/users/route.ts` branches on `role === "admin"`). In both cases the password is hashed with `bcrypt.hash(password, 10)` and stored as `passwordHash` — the plaintext password is never persisted.
+1. **Setting a password.** The very first admin is created by `node scripts/bootstrap-admin.mjs` — a standalone script that inserts directly into MongoDB (defaulting to email `admin` / password `admin`), since at that point there's no UI and no admin to call the normal "create user" endpoint with. The underlying `POST /api/setup` route does the same insert with `{ name, email, password }`, guarded the same way (`User.countDocuments() > 0` refuses); the script exists so bootstrapping doesn't require the dev server to already be running. Every other admin is created from the Users page exactly like a student/teacher, just with a password field shown instead of triggering a generated code (`app/api/admin/users/route.ts` branches on `role === "admin"`). In all three cases the password is hashed with `bcrypt.hash(password, 10)` and stored as `passwordHash` — the plaintext password is never persisted.
 2. **Logging in.** On `/login`, clicking "Admin? Sign in with email & password" swaps the form to email + password fields, calling `signIn("credentials", { email, password, redirect: false })`.
 3. **Not one-time.** Unlike the code flow, a successful password login does **not** clear or change anything — the same password keeps working across as many logins as you want, exactly like a normal account, because there's no equivalent of "an admin handing themselves a fresh code" if they're the only admin and get logged out.
 4. **Changing it.** An existing admin can set a new password for any admin account (including their own) via "Set new password" on the Users page (`POST /api/admin/users/[id]/set-password`).
@@ -375,7 +373,7 @@ Credentials({
 
 ### Forced password change
 
-Every code path that sets an admin's password — `/api/setup`, creating an admin from the Users page, "Set new password," and the recovery script — also sets `mustChangePassword: true` on that user (`models/User.ts`). This flag rides along in the JWT (`lib/auth.config.ts`'s `jwt`/`session` callbacks copy it onto the token alongside `id` and `role`), and every layout (`app/(student)/layout.tsx`, `app/(teacher)/layout.tsx`, `app/(admin)/layout.tsx`) checks it immediately after checking the session exists, redirecting to `/change-password` if it's true — before rendering anything else, regardless of which page was requested.
+Every code path that sets an admin's password — the bootstrap script, `/api/setup`, creating an admin from the Users page, "Set new password," and the recovery script — also sets `mustChangePassword: true` on that user (`models/User.ts`). This flag rides along in the JWT (`lib/auth.config.ts`'s `jwt`/`session` callbacks copy it onto the token alongside `id` and `role`), and every layout (`app/(student)/layout.tsx`, `app/(teacher)/layout.tsx`, `app/(admin)/layout.tsx`) checks it immediately after checking the session exists, redirecting to `/change-password` if it's true — before rendering anything else, regardless of which page was requested.
 
 `/change-password` (`app/change-password/page.tsx`) is a normal top-level page, not nested in any of those route groups, so there's no redirect loop. Submitting it calls `POST /api/account/change-password`, which hashes the new password and sets `mustChangePassword: false` — but since sessions are JWTs (not re-read from the database on every request), the *existing* token in the browser still has the old `mustChangePassword: true` baked in until a new one is issued. The page works around this by immediately calling `signIn("credentials", ...)` again with the just-set password right after the API call succeeds, which mints a fresh token reflecting the change, then redirects to `/admin`.
 
