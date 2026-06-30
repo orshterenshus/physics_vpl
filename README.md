@@ -6,6 +6,61 @@ A web application for physics courses where students write Python code to solve 
 
 ---
 
+## Sneak Peek
+
+<table>
+<tr>
+<td width="50%">
+
+**Sign in** — students/teachers use a one-time code from their instructor; admins use email + password.
+
+![Login page](docs/screenshots/01-login.png)
+
+</td>
+<td width="50%">
+
+**Browse problems** — organized by chapter, with your latest grade and a link to past attempts at a glance.
+
+![Problems list with grades and history links](docs/images/student-problems-list.png)
+
+</td>
+</tr>
+<tr>
+<td width="50%">
+
+**Solve, in the browser** — LaTeX problem statement, a real Python editor, and instant run output (including graphs).
+
+![Problem solver with code editor and graph output](docs/screenshots/03-problem-solver.png)
+
+</td>
+<td width="50%">
+
+**Get graded in seconds** — physics, coding, and reasoning scored independently, with structured written feedback.
+
+![Graded submission with score breakdown and feedback](docs/screenshots/05-graded-feedback.png)
+
+</td>
+</tr>
+<tr>
+<td width="50%">
+
+**Manage submissions** — filter by problem or date, override a grade, and export everything to CSV.
+
+![Teacher submissions table with filters and export](docs/images/teacher-submissions.png)
+
+</td>
+<td width="50%">
+
+**See the whole class at once** — average grade per problem and which reasoning aspects students miss most.
+
+![Analytics dashboard with chart and breakdown table](docs/images/teacher-analytics.png)
+
+</td>
+</tr>
+</table>
+
+---
+
 ## Features
 
 - **In-browser Python editor** (Monaco) with live code execution and graph output
