@@ -201,7 +201,7 @@ ADMIN_NAME="Your Name" ADMIN_EMAIL="you@example.com" ADMIN_PASSWORD="choose-a-re
 node scripts/seed.mjs
 ```
 
-This populates the database with the example physics problems used throughout this README (Particle Trajectory, Bouncing Ball, etc.) — it does **not** create any user accounts.
+This populates the database with the example physics problems used throughout this README (Particle Trajectory, Bouncing Ball, etc.) — it does **not** create any user accounts. It reads `MONGODB_URI` from `.env.local`, same as the bootstrap script above, and is safe to re-run (it replaces these five sample problems instead of duplicating them; anything else you've created from the Teacher dashboard is untouched).
 
 ---
 

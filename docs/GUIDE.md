@@ -305,11 +305,15 @@ Go to `http://localhost:3000/login`, click "Admin? Sign in with email & password
 
 ### Step 9 — (Optional) Seed example problems
 
+If `/problems` is empty (no problems yet — this is the normal state right after setup, since `bootstrap-admin.mjs` only creates a user, not content), run:
+
 ```bash
 node scripts/seed.mjs
 ```
 
-This inserts a handful of ready-made physics problems (used throughout this guide and the README) directly into the `problems` collection. It does **not** touch users — it's purely sample content so you have something to click into immediately instead of starting from a totally empty problem list.
+Like `bootstrap-admin.mjs` and `reset-admin-password.mjs`, this reads `MONGODB_URI` straight from `.env.local` and connects to whatever database that URI points to — it does **not** assume a local MongoDB or a fixed database name. (An earlier version of this script had a bug where it ignored `.env.local` entirely and always connected to `mongodb://localhost:27017/physics-lab`, so seeding silently did nothing — or seeded the wrong database — for anyone using MongoDB Atlas as documented above. That's fixed; if you're on an older checkout, pull the latest.)
+
+It inserts five ready-made physics problems (used throughout this guide and the README) directly into the `problems` collection, one each for chapters 2 through 5 (chapter 3 gets two). It does **not** touch users — it's purely sample content so you have something to click into immediately instead of starting from a totally empty problem list. It's safe to re-run any time: it first deletes any existing problems in chapters 2–5 (`Problem.deleteMany({ chapter: { $in: [2, 3, 4, 5] } })`) before re-inserting, so running it twice never creates duplicates — it just resets those five problems back to their original text. Problems you create yourself in other chapters from the Teacher dashboard are untouched.
 
 You're now fully running. Create a student account from `/admin`, log in as that student in a different browser/incognito window, open a problem, write some Python, hit Run, then Submit, and watch the grade come back.
 

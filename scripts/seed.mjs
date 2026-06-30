@@ -1,8 +1,17 @@
 import { MongoClient, ObjectId } from "mongodb";
+import { readFileSync } from "fs";
+import { resolve } from "path";
 
-const client = new MongoClient("mongodb://localhost:27017");
+function readMongoUri() {
+  const content = readFileSync(resolve(process.cwd(), ".env.local"), "utf-8");
+  const match = content.match(/^MONGODB_URI=(.+)$/m);
+  if (!match) throw new Error("MONGODB_URI not found in .env.local");
+  return match[1].trim();
+}
+
+const client = new MongoClient(readMongoUri());
 await client.connect();
-const db = client.db("physics-lab");
+const db = client.db();
 const col = db.collection("problems");
 
 await col.deleteMany({ chapter: { $in: [2, 3, 4, 5] } });
