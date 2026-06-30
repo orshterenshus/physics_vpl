@@ -650,21 +650,39 @@ A non-obvious lesson learned while building this prompt: **never show this model
 
 ## Teacher tools: override, history, analytics, CSV export
 
-Four features layered onto the teacher/admin side without changing anything about how grading itself works (`lib/evaluate.ts` is untouched — see the screenshots in the [README](../README.md#teacher-tools)).
+Four features layered onto the teacher/admin side without changing anything about how grading itself works (`lib/evaluate.ts` is untouched).
 
 ### Manual grade override
+
+Click **+** to expand any row, then **Override grade** to set a corrected grade and/or feedback. The AI's original grade and feedback are never deleted — only layered over — so the original call is always recoverable via **Clear override**. A purple **Adjusted** badge marks a submission as teacher-corrected anywhere it's shown.
+
+![Expanded submission showing the override link](images/teacher-submission-expanded.png)
+
+![Override form with grade and feedback fields](images/teacher-override-form.png)
 
 `models/Submission.ts` adds four fields, all defaulting to `null` and additive only — the original `grade`/`feedback` from the LLM are never overwritten: `overrideGrade`, `overrideFeedback`, `overriddenBy`, `overriddenAt`. `POST /api/teacher/submissions/[id]/override` (Zod-validated, grade 0–100) sets all four; `DELETE` on the same route clears them back to `null`. Every place a grade or feedback is displayed — the student's problem list, the `ProblemSolver` result panel, the student's submission history, the teacher's submissions table, the analytics dashboard, and the CSV export — computes `overrideGrade ?? grade` / `overrideFeedback ?? feedback` rather than reading the raw fields directly, so an override is reflected everywhere at once and a "cleared" override instantly reverts every surface back to the AI's original call.
 
 ### Submission history
 
+Students see a "History (n)" link next to any problem they've attempted more than once, showing every past submission for that problem with its grade and an expandable feedback panel.
+
+![Student viewing their submission history for one problem](images/student-history.png)
+
 `app/(student)/problems/[id]/history/page.tsx` is a server component that queries every submission a student has made for one problem (`Submission.find({ studentId, problemId })`, sorted newest-first) and renders them via `components/student/SubmissionHistory.tsx` — a client component with one `expandedId` for the inline feedback panel, the same pattern as the teacher's `SubmissionsTable`. The problem list (`app/(student)/problems/page.tsx`) now also tracks an `attemptCountByProblem` map alongside the existing grade map, and only renders the "History (n)" link when that count is greater than zero.
 
 ### Analytics dashboard
 
+`/teacher/analytics` shows a horizontal bar chart of the average grade per problem, a per-problem breakdown table, and a best-effort count of which reasoning aspects are most often missing.
+
+![Analytics dashboard with chart and breakdown table](images/teacher-analytics.png)
+
 `lib/analytics.ts` does the actual number-crunching against the already-fetched submissions for a problem set: `computeProblemStats()` returns submission count, average grade, average physics/coding/reasoning, and a below-70% count per problem; `computeMissingAspectCounts()` does a best-effort case-insensitive substring match of `deductionReasons.reasoning` text against five fixed reasoning-aspect strings (the same five from the Q1 grading-examples checklist). Because that match is just string-matching free text rather than a structured field, the dashboard explicitly labels that section "Approximate." `app/(teacher)/teacher/analytics/page.tsx` does the data fetching and table; `components/teacher/AnalyticsChart.tsx` is a client component wrapping a horizontal Recharts `BarChart` — it calls `useTheme()` itself (rather than receiving theme as a prop) since its parent page is a server component and can't read `next-themes` state.
 
 ### CSV export with filters
+
+The Submissions page has a filter bar for problem and date range. "Export CSV" downloads exactly the filtered set as a CSV file with a human-readable `Submitted (UTC)` column.
+
+![Submissions page with filters and export button](images/teacher-submissions.png)
 
 `GET /api/teacher/submissions/export` builds the same Mongoose query the submissions page itself uses — `grade: { $ne: null }`, optionally narrowed by `problemId` and a `createdAt` range — and streams it back as `text/csv`. `lib/dateRangeQuery.ts`'s `buildCreatedAtFilter(from, to)` is shared between the export route and the page itself so the two stay in sync: a bare `from` becomes `$gte` at `T00:00:00.000Z`, a bare `to` becomes `$lte` at `T23:59:59.999Z`. Each field is escaped manually (`csvField()` — wraps in quotes and doubles internal quotes if the value contains a comma, quote, or newline), and the `Submitted (UTC)` column is formatted with a manual `formatDate()` using the UTC getters rather than `toLocaleString()`, for the same reason described in the hydration-mismatch note below: locale-dependent formatting differs between environments, and a CSV consumed by a spreadsheet should be unambiguous regardless of where it was generated. The submissions page's filter bar (`<form method="GET">`, a problem `<select>` and two `<input type="date">`) writes `problemId`/`from`/`to` straight into the URL, and the "Export CSV" link carries the same three params through `URLSearchParams` so exporting always matches whatever's currently filtered on screen.
 

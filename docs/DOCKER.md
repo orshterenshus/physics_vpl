@@ -109,7 +109,7 @@ There's no AMD/Apple Silicon GPU passthrough equivalent for Docker containers to
 
 ## Teacher tools (override, history, analytics, CSV export)
 
-Manual grade override, student submission history, the analytics dashboard, and CSV export all work identically in Docker — none of them need any extra setup, environment variable, or container beyond what's already running. See the [README's Teacher Tools section](../README.md#teacher-tools) for what each one does and what it looks like, and the [Guide's technical breakdown](GUIDE.md#teacher-tools-override-history-analytics-csv-export) for how they're implemented.
+Manual grade override, student submission history, the analytics dashboard, and CSV export all work identically in Docker — none of them need any extra setup, environment variable, or container beyond what's already running. See the [Guide's Teacher Tools section](GUIDE.md#teacher-tools-override-history-analytics-csv-export) for screenshots, what each one does, and how they're implemented.
 
 The one place Docker is relevant: CSV export and the analytics dashboard both read from the same `mongo` container everything else uses, so if you've been poking at submissions directly via `mongosh` (e.g. to generate test data), those changes show up there too.
 
