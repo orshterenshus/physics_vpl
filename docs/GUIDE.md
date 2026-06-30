@@ -11,7 +11,7 @@ This is the deep-dive companion to [`README.md`](../README.md). The README is a 
 5. [Full installation guide, from zero](#full-installation-guide-from-zero)
 6. [Authentication, in detail](#authentication-in-detail)
 7. [Code deep-dive](#code-deep-dive)
-8. [Known unused / legacy code](#known-unused--legacy-code)
+8. [Teacher tools: override, history, analytics, CSV export](#teacher-tools-override-history-analytics-csv-export)
 9. [Troubleshooting](#troubleshooting)
 10. [Appendix: environment variables and npm scripts](#appendix-environment-variables-and-npm-scripts)
 
@@ -134,8 +134,6 @@ These are the **exact** pinned/installed versions from this project's `package.j
 | NumPy | any recent version | The only Python package this project depends on (`pip install numpy`). |
 | Ollama | any version that supports `/api/generate` with `format: "json"` | This has been stable in Ollama for a long time; no exotic feature is required. |
 | MongoDB | 4.4+ (Atlas free tier is plenty) | Standard Mongoose compatibility floor. |
-
-A few packages are installed but **not actually used** anywhere in the current code — see [Known unused / legacy code](#known-unused--legacy-code) for the full list and why they're harmless to ignore (or safe to remove later).
 
 ---
 
@@ -423,51 +421,63 @@ physics_vpl/
 ├── app/
 │   ├── layout.tsx                 # Root HTML shell + ThemeProvider, no auth logic
 │   ├── page.tsx                   # "/" — redirects to /login or /problems
-│   ├── login/page.tsx             # The one-time-code entry form
+│   ├── login/page.tsx             # The one-time-code / admin email+password entry form
+│   ├── change-password/page.tsx   # Forced password reset, shown when mustChangePassword=true
 │   ├── (student)/
 │   │   ├── layout.tsx             # Requires any session; shows student header
 │   │   └── problems/
-│   │       ├── page.tsx           # Problem list grouped by chapter, shows latest grade per problem
-│   │       └── [id]/page.tsx      # Loads one Problem, renders <ProblemSolver>
+│   │       ├── page.tsx           # Problem list grouped by chapter, shows latest grade + attempt count
+│   │       └── [id]/
+│   │           ├── page.tsx       # Loads one Problem, renders <ProblemSolver>
+│   │           └── history/page.tsx  # All of this student's past submissions for one problem
 │   ├── (teacher)/
 │   │   ├── layout.tsx             # Requires role teacher|admin; teacher header/nav
 │   │   └── teacher/
 │   │       ├── page.tsx           # Problem list with Edit/Submissions links
 │   │       ├── problems/new/page.tsx        # <ProblemEditor> in create mode
 │   │       ├── problems/[id]/edit/page.tsx  # <ProblemEditor> in edit mode
-│   │       └── submissions/page.tsx         # <SubmissionsTable>, server-fetched rows
+│   │       ├── submissions/page.tsx         # <SubmissionsTable>, server-fetched rows, filter bar
+│   │       └── analytics/page.tsx           # Class-wide grade stats + missing-reasoning-aspect counts
 │   ├── (admin)/
 │   │   ├── layout.tsx             # Requires role teacher|admin; admin header/nav
 │   │   └── admin/page.tsx         # <UserTable>
 │   └── api/
 │       ├── auth/[...nextauth]/route.ts      # NextAuth's own handlers
 │       ├── run-code/route.ts                # Executes Python, no DB write
-│       ├── setup/route.ts                   # One-time first-admin bootstrap
+│       ├── setup/route.ts                   # One-time first-admin bootstrap (also used by scripts/bootstrap-admin.mjs's logic)
+│       ├── account/change-password/route.ts # Clears mustChangePassword after a forced reset
 │       ├── submissions/route.ts             # POST (create+grade), GET (list mine)
 │       ├── submissions/[id]/route.ts        # GET one (own, or any if staff)
 │       ├── problems/route.ts                # GET (public list), POST (staff create)
 │       ├── problems/[id]/route.ts           # GET/PUT/DELETE one problem
+│       ├── teacher/submissions/[id]/override/route.ts  # POST (set override), DELETE (clear it)
+│       ├── teacher/submissions/export/route.ts          # CSV export, with problem/date-range filters
 │       └── admin/
 │           ├── problems/route.ts            # GET all incl. teacherSolution/hints
 │           ├── problems/[id]/route.ts       # PUT with full field access
 │           ├── submissions/route.ts         # GET all submissions (any student)
 │           └── users/
-│               ├── route.ts                 # GET all, POST create (+ generates code)
+│               ├── route.ts                 # GET all, POST create (+ generates code, or sets an admin password)
 │               ├── [id]/route.ts            # DELETE
-│               └── [id]/generate-code/route.ts  # POST — new one-time code
+│               ├── [id]/generate-code/route.ts  # POST — new one-time code
+│               └── [id]/set-password/route.ts   # POST — set an admin's password
 ├── components/
 │   ├── ThemeProvider.tsx          # next-themes wrapper (class-based dark mode)
 │   ├── editor/
 │   │   ├── ProblemSolver.tsx      # The student's main workspace
 │   │   ├── ProblemEditor.tsx      # The teacher's problem-authoring form
 │   │   └── GraphPanel.tsx         # Recharts line chart for set_graph() output
+│   ├── student/
+│   │   └── SubmissionHistory.tsx  # Expandable-row list of one student's past attempts at a problem
 │   ├── teacher/
-│   │   └── SubmissionsTable.tsx   # Expandable-row submissions table
+│   │   ├── SubmissionsTable.tsx   # Expandable-row submissions table, with override editing inline
+│   │   └── AnalyticsChart.tsx     # Recharts horizontal bar chart, average grade per problem
 │   ├── admin/
-│   │   └── UserTable.tsx          # User create/delete/regenerate-code UI
+│   │   └── UserTable.tsx          # User create/delete/regenerate-code/set-password UI
 │   └── ui/
 │       ├── ThemeToggle.tsx        # Light/dark toggle button
-│       └── SignOutButton.tsx      # Calls signOut({ callbackUrl: "/login" })
+│       ├── SignOutButton.tsx      # Calls signOut({ callbackUrl: "/login" })
+│       └── BackToProblemsLink.tsx # Header link, shown only on an actual problem page
 ├── lib/
 │   ├── evaluate.ts                # The entire LLM grading engine
 │   ├── auth.ts                    # Full NextAuth instance (Credentials provider)
@@ -475,16 +485,18 @@ physics_vpl/
 │   ├── session.ts                 # Lightweight NextAuth instance for layouts
 │   ├── db.ts                      # Cached Mongoose connection singleton
 │   ├── generateCode.ts            # 8-char random login code generator
-│   ├── physics.ts                 # UNUSED — see "Known unused / legacy code"
-│   └── runCode.ts                 # UNUSED — see "Known unused / legacy code"
+│   ├── analytics.ts               # Per-problem stats + missing-reasoning-aspect counting for the dashboard
+│   └── dateRangeQuery.ts          # Shared from/to → Mongo createdAt filter, used by submissions page + CSV export
 ├── models/
-│   ├── User.ts
+│   ├── User.ts                    # Roles: student | teacher | admin; loginCode or passwordHash; mustChangePassword
 │   ├── Problem.ts
-│   └── Submission.ts
+│   └── Submission.ts              # Includes overrideGrade/overrideFeedback/overriddenBy/overriddenAt
 ├── scripts/
-│   └── seed.mjs                   # Inserts sample Problem documents
-├── public/
-│   └── sandbox-worker.js          # UNUSED — leftover from an earlier design
+│   ├── seed.mjs                       # Inserts sample Problem documents
+│   ├── bootstrap-admin.mjs            # Manual (non-Docker) setup: creates the first admin directly in MongoDB
+│   ├── reset-admin-password.mjs       # Manual recovery: directly sets an admin's passwordHash if locked out
+│   ├── docker-bootstrap-admin.mjs     # Docker's bootstrap-admin service — calls POST /api/setup over the network
+│   └── docker-reset-admin-password.mjs  # Docker's recovery path — used via `docker compose run --rm bootstrap-admin ...`
 └── Q1 examples for grading.md     # Reference student submissions + expected scores
 ```
 
@@ -497,7 +509,9 @@ physics_vpl/
 | `name` | `String`, required | |
 | `email` | `String`, required, **unique** | Display only — not used for login |
 | `role` | `"student" \| "teacher" \| "admin"` | defaults to `"student"` |
-| `loginCode` | `String \| null` | The one-time login secret; `null` once used |
+| `loginCode` | `String \| null` | The one-time login secret; `null` once used. Only set for student/teacher accounts |
+| `passwordHash` | `String \| null` | bcrypt hash; only set for admin accounts |
+| `mustChangePassword` | `Boolean` | Forces a redirect to `/change-password` on next login; set whenever an admin's password is (re)set |
 
 One implementation quirk worth knowing: this model file explicitly does `delete mongoose.models["User"]` before redefining the model, instead of the usual `mongoose.models.X || mongoose.model(...)` guard the other two models use. This forces the schema to be rebuilt on every hot-reload during development — harmless, just a defensive measure against stale cached schemas while iterating on this particular model.
 
@@ -526,6 +540,8 @@ One implementation quirk worth knowing: this model file explicitly does `delete 
 | `feedback` | `String` | Defaults to `"Evaluation pending"` until graded |
 | `physicsScore` / `codingScore` / `reasoningScore` | `Number \| null` | The three independent components |
 | `deductionReasons` | `{ physics, coding, reasoning } \| null` | Why each category lost points, or `null` if perfect |
+| `overrideGrade` / `overrideFeedback` | `Number \| null` / `String \| null` | A teacher's manual correction, layered on top of — never replacing — the LLM's `grade`/`feedback` |
+| `overriddenBy` / `overriddenAt` | `String \| null` / `Date \| null` | Who applied the override and when; all four override fields are cleared together when an override is removed |
 
 ### Code execution sandbox (`app/api/run-code/route.ts`)
 
@@ -620,7 +636,7 @@ A non-obvious lesson learned while building this prompt: **never show this model
 
 **Submit** posts to `/api/submissions`, gets back a `submissionId`, then runs a `setInterval` polling `/api/submissions/[id]` every 2 seconds for up to `MAX_ATTEMPTS = 150` (5 minutes), stopping early if `grade` is no longer `null`. After `SLOW_AFTER = 30` attempts (60 seconds) with no result, a `gradingSlow` flag flips on and the UI swaps its message to "Still working — this can take a few minutes without a GPU," rather than silently doing nothing. This generous window exists specifically because CPU-only LLM inference (the Docker default with no GPU passthrough) is genuinely much slower than the original 60-second budget assumed — that shorter window left the UI stuck on a dead "Pending..." state with no further polling even though the backend would go on to finish the grading anyway.
 
-**`app/(student)/problems/page.tsx`** — the problem list. Alongside the existing `Problem.find(...)` query, it now also queries `Submission.find({ studentId: session.user.id, grade: { $ne: null } })` sorted by `createdAt` descending, and keeps only the first (i.e. most recent) submission per `problemId` in a plain `Record<string, number>` map. Each row shows that grade instead of "Solve" if one exists for that problem — purely a presentational change, no new API route or schema needed, since `Submission` already had everything required.
+**`app/(student)/problems/page.tsx`** — the problem list. Alongside the existing `Problem.find(...)` query, it now also queries `Submission.find({ studentId: session.user.id, grade: { $ne: null } })` sorted by `createdAt` descending, and keeps two maps from this single pass: the most recent grade per `problemId` (showing `overrideGrade ?? grade` instead of "Solve" if one exists), and an attempt count per `problemId` (showing a "History (n)" link next to any problem attempted more than once, linking to `/problems/[id]/history` — see [Teacher tools](#teacher-tools-override-history-analytics-csv-export) below).
 
 **`ProblemEditor.tsx`** — the teacher's authoring form, used for both creating and editing (the only difference is whether a `problem` prop was passed in, which also decides whether it `POST`s to `/api/problems` or `PUT`s to `/api/admin/problems/[id]`). The right-hand side is a single tab strip switching between four targets — the description gets a Markdown+KaTeX live preview toggle; the other three (starter code, teacher solution, eval hints) are plain Monaco editors pointed at different string fields of the same form state.
 
@@ -658,18 +674,6 @@ While building the above, `SubmissionsTable.tsx`'s `{new Date(s.createdAt).toLoc
 
 ---
 
-## Known unused / legacy code
-
-In the interest of "every little detail" rather than a sanitized picture: a few things present in this codebase are not actually wired into anything currently running. None of this is harmful, but it's worth knowing about so it isn't mistaken for active functionality:
-
-- **`lib/physics.ts`** (exports `PHYSICS_LIB`, a string of JavaScript) and **`lib/runCode.ts`** (`runInWorker()`, a `Worker`-based JS sandbox) and **`public/sandbox-worker.js`** — these three together appear to be the remains of an earlier design where student code may have run as JavaScript in a browser Web Worker. The project now runs everything as **Python**, server-side, via `app/api/run-code/route.ts` (documented above). Nothing in the current app imports any of these three files.
-- **`plotly.js`, `react-plotly.js`, `@types/plotly.js`** in `package.json` — an earlier charting choice, superseded by Recharts (`GraphPanel.tsx`). Not imported anywhere currently.
-- **`@auth/mongodb-adapter`** in `package.json` — this package exists for NextAuth's *database session* strategy. This app uses `session: { strategy: "jwt" }` instead (see [Authentication](#authentication-in-detail)), which doesn't use an adapter at all. Not imported anywhere currently.
-
-None of these need to be removed for the app to work correctly — they're simply dead weight in `node_modules` and the repo tree.
-
----
-
 ## Troubleshooting
 
 | Symptom | Likely cause | Fix |
@@ -704,3 +708,15 @@ None of these need to be removed for the app to work correctly — they're simpl
 | `npm run build` | `next build` | Production build |
 | `npm run start` | `next start` | Runs a previously built app in production mode |
 | `npm run lint` | `eslint` | Lints the codebase |
+
+### Standalone scripts (`node scripts/<file>.mjs`, not `npm run`)
+
+These aren't wired into `package.json`'s `scripts` block — run them directly with `node`. The manual-setup ones read `MONGODB_URI` from `.env.local` themselves; the Docker ones run inside a container where Compose has already set `MONGODB_URI` as a real environment variable.
+
+| Script | Used by | Purpose |
+|---|---|---|
+| `scripts/bootstrap-admin.mjs` | Manual (`npm run dev`) setup | Creates the first admin (defaults to `admin`/`admin`) directly in MongoDB; no-ops if any user already exists |
+| `scripts/seed.mjs` | Both manual setup and the Docker `seed` service | Inserts/resets the five example problems; safe to re-run |
+| `scripts/reset-admin-password.mjs <email> <new-password>` | Manual setup recovery | Directly sets an admin's password if locked out with no other way in |
+| `scripts/docker-bootstrap-admin.mjs` | Docker's `bootstrap-admin` service | Calls `POST /api/setup` over the container network using `ADMIN_NAME`/`ADMIN_EMAIL`/`ADMIN_PASSWORD` from `.env` |
+| `scripts/docker-reset-admin-password.mjs` | Docker recovery (`docker compose run --rm bootstrap-admin ...`) | Same idea as `reset-admin-password.mjs`, run inside a container |
