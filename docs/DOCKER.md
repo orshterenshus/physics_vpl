@@ -20,13 +20,19 @@ cd physics_vpl
 cp .env.example .env
 ```
 
-Open `.env` in any text editor and set `AUTH_SECRET` to a random string. To generate one, type this command in the same terminal (cmd, PowerShell, or whatever you used for the commands above) and press Enter:
+Open `.env` in any text editor and set `AUTH_SECRET` to a random string. **`openssl` is not required** — it isn't preinstalled on Windows, so the command below will fail with "not recognized" there unless you've installed it separately. Use whichever of these is easiest:
 
-```bash
-openssl rand -base64 32
-```
+- **PowerShell** (built into Windows, no install needed) — type this and press Enter:
+  ```powershell
+  $b = New-Object byte[] 32; (New-Object Security.Cryptography.RNGCryptoServiceProvider).GetBytes($b); [Convert]::ToBase64String($b)
+  ```
+- **macOS/Linux, or Windows if you do have `openssl`** — type this and press Enter:
+  ```bash
+  openssl rand -base64 32
+  ```
+- Or just type any long random string of letters/numbers yourself — it doesn't need to come from either command above, it just needs to be long and random.
 
-It'll print a random string directly in the terminal — copy that and paste it after `AUTH_SECRET=` in `.env`. (If your terminal says it doesn't recognize `openssl`, just type any long random string of letters/numbers yourself instead — it doesn't need to come from that specific command, it just needs to be long and random.)
+Whichever you use, copy the result and paste it after `AUTH_SECRET=` in `.env`.
 
 Leave `ADMIN_EMAIL`/`ADMIN_PASSWORD` as the default `admin`/`admin` — you'll be forced to replace it with a real password the first time you actually log in, so there's no need to pick one now (see below). Leave `OLLAMA_MODEL` as the default too unless you know your machine has a strong GPU (see [Choosing a model](#choosing-a-model) below).
 
