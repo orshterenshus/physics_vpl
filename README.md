@@ -187,15 +187,19 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ### 5. Bootstrap the first admin account (first run only)
 
-There's no login UI for creating the very first user — the database starts empty. A one-time API endpoint creates the first admin: it works exactly once and refuses to run again once any user exists.
+There's no login UI for creating the very first user — the database starts empty. Run the bootstrap script once; it's safe to re-run (it does nothing if any user already exists):
 
 ```bash
-curl -X POST http://localhost:3000/api/setup \
-  -H "Content-Type: application/json" \
-  -d "{\"name\": \"Your Name\", \"email\": \"you@example.com\", \"password\": \"choose-a-real-password\"}"
+node scripts/bootstrap-admin.mjs
 ```
 
-Go to `/login`, click "Admin? Sign in with email & password," and sign in with that email and password — unlike student/teacher codes, this isn't one-time, so it keeps working across logins. See [Authentication](#authentication) below for why admin works differently from student/teacher logins.
+This creates an admin with email `admin` and password `admin`, exactly like the Docker setup's default (see `docs/DOCKER.md`). Go to `/login`, click "Admin? Sign in with email & password," and sign in with `admin` / `admin` — you'll be forced to set a real password (8+ characters) before doing anything else, and the original `admin`/`admin` stops working the moment you save the new one. Unlike student/teacher codes, a password isn't one-time, so it keeps working across logins after that. See [Authentication](#authentication) below for why admin works differently from student/teacher logins.
+
+To use a different name/email/password instead of the `admin`/`admin` default, set `ADMIN_NAME`/`ADMIN_EMAIL`/`ADMIN_PASSWORD` when running it:
+
+```bash
+ADMIN_NAME="Your Name" ADMIN_EMAIL="you@example.com" ADMIN_PASSWORD="choose-a-real-password" node scripts/bootstrap-admin.mjs
+```
 
 ### 6. Seed example problems (optional)
 
@@ -203,7 +207,7 @@ Go to `/login`, click "Admin? Sign in with email & password," and sign in with t
 node scripts/seed.mjs
 ```
 
-This populates the database with the example physics problems used throughout this README (Particle Trajectory, Bouncing Ball, etc.) — it does **not** create any user accounts.
+This populates the database with the example physics problems used throughout this README (Particle Trajectory, Bouncing Ball, etc.) — it does **not** create any user accounts. It reads `MONGODB_URI` from `.env.local`, same as the bootstrap script above, and is safe to re-run (it replaces these five sample problems instead of duplicating them; anything else you've created from the Teacher dashboard is untouched).
 
 ---
 
@@ -257,7 +261,7 @@ There's no email-sending service anywhere in this app. Login works differently d
 3. That person goes to `/login`, types the code in, and is signed in.
 4. The code is single-use: the instant it's used to log in successfully, it's cleared from the database. To let that person log in again later (e.g. a new browser/device), an admin generates them a fresh code from the Users page.
 
-**Admins** sign in with an email + a real password instead (the "Admin? Sign in with email & password" link on `/login`) — not a one-time code. This is deliberate: an admin who gets logged out with nobody else around to issue them a fresh code would otherwise be permanently locked out. A password persists across logins like a normal account. The very first admin is created via `POST /api/setup` (see Setup above) with `{ name, email, password }`; every other admin is created the same way an admin creates anyone else, from the Users page, just with a password field instead of a generated code.
+**Admins** sign in with an email + a real password instead (the "Admin? Sign in with email & password" link on `/login`) — not a one-time code. This is deliberate: an admin who gets logged out with nobody else around to issue them a fresh code would otherwise be permanently locked out. A password persists across logins like a normal account. The very first admin is created via `node scripts/bootstrap-admin.mjs` (see Setup above) or automatically by Docker's `bootstrap-admin` service, both of which insert straight into the database with the same logic `POST /api/setup` uses internally; every other admin is created the same way an admin creates anyone else, from the Users page, just with a password field instead of a generated code.
 
 Whenever an admin's password is (re)set — at creation, via "Set new password" on the Users page, or via the Docker recovery script — the account is flagged `mustChangePassword`. The next time that account logs in, every page redirects to `/change-password` until a new password (8+ characters) is set; logging in with the old password no longer works the moment the new one is saved. This is what makes it safe for the Docker setup to default to the literal username/password `admin`/`admin` — the first real login forces it to be replaced. If every admin is locked out with no way to log in at all, `node scripts/reset-admin-password.mjs <email> <new-password>` sets a fresh password directly in the database (it reads `MONGODB_URI` from `.env.local`).
 

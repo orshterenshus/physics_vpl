@@ -1,6 +1,19 @@
 import { MongoClient, ObjectId } from "mongodb";
+import { readFileSync } from "fs";
+import { resolve } from "path";
 
-const client = new MongoClient(process.env.MONGODB_URI ?? "mongodb://localhost:27017/physics-lab");
+// Inside Docker, MONGODB_URI is already set in the environment (docker-compose.yml's
+// `seed` service). Outside Docker, there's no such env var — fall back to reading
+// .env.local directly, the same way bootstrap-admin.mjs and reset-admin-password.mjs do.
+function readMongoUri() {
+  if (process.env.MONGODB_URI) return process.env.MONGODB_URI;
+  const content = readFileSync(resolve(process.cwd(), ".env.local"), "utf-8");
+  const match = content.match(/^MONGODB_URI=(.+)$/m);
+  if (!match) throw new Error("MONGODB_URI not found in the environment or .env.local");
+  return match[1].trim();
+}
+
+const client = new MongoClient(readMongoUri());
 await client.connect();
 const db = client.db();
 const col = db.collection("problems");
