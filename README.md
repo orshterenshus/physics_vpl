@@ -222,34 +222,43 @@ This populates the database with the example physics problems used throughout th
 physics_vpl/
 ├── app/
 │   ├── (admin)/          # Admin dashboard — manage users
-│   ├── (teacher)/        # Teacher dashboard — create/edit problems, view submissions
-│   ├── (student)/        # Student dashboard — browse problems, submit solutions
+│   ├── (teacher)/        # Teacher dashboard — create/edit problems, submissions, analytics
+│   ├── (student)/        # Student dashboard — browse problems, submit solutions, view history
 │   ├── api/
 │   │   ├── run-code/     # Executes student Python code server-side (10s timeout)
 │   │   ├── submissions/  # Submit code and poll for grade results
 │   │   ├── problems/     # CRUD for problems
+│   │   ├── teacher/      # Grade override (set/clear) and CSV export
 │   │   └── admin/        # Admin-only user and problem management
-│   └── login/            # Login-code entry page (no email/password)
+│   ├── login/            # Login-code / admin email+password entry page
+│   └── change-password/  # Forced password reset page
 ├── components/
 │   ├── editor/
 │   │   ├── ProblemSolver.tsx   # Main student view: resizable editor + run + submit
 │   │   ├── ProblemEditor.tsx   # Teacher problem creation/editing form
 │   │   └── GraphPanel.tsx      # Recharts graph output panel
+│   ├── student/
+│   │   └── SubmissionHistory.tsx  # A student's past attempts at one problem
 │   ├── teacher/
-│   │   └── SubmissionsTable.tsx   # Submissions table with expandable per-row feedback view
-│   └── ui/               # Theme toggle, sign-out button
+│   │   ├── SubmissionsTable.tsx   # Submissions table — expandable feedback, inline override editing
+│   │   └── AnalyticsChart.tsx     # Average-grade-per-problem bar chart
+│   └── ui/               # Theme toggle, sign-out button, back-to-problems link
 ├── lib/
 │   ├── evaluate.ts       # LLM evaluation engine (Ollama integration + grading logic)
 │   ├── auth.ts           # NextAuth full config (with DB)
 │   ├── auth.config.ts    # Lean NextAuth config (no DB, used in middleware)
 │   ├── session.ts        # Session-only auth import (avoids mongoose on page load)
-│   └── db.ts             # MongoDB connection
+│   ├── db.ts             # MongoDB connection
+│   ├── analytics.ts      # Stats + missing-reasoning-aspect counting for the analytics dashboard
+│   └── dateRangeQuery.ts # Shared date-range filter for the submissions page + CSV export
 ├── models/
-│   ├── User.ts           # Roles: student | teacher | admin
+│   ├── User.ts           # Roles: student | teacher | admin; loginCode or passwordHash
 │   ├── Problem.ts        # Chapter, problem number, description, starter code, teacher solution
-│   └── Submission.ts     # Grade, feedback, physicsScore, codingScore, reasoningScore, deductionReasons
+│   └── Submission.ts     # Grade/feedback + physics/coding/reasoning scores + teacher override fields
 ├── scripts/
-│   └── seed.mjs          # Database seed script
+│   ├── seed.mjs                 # Database seed script (5 example problems)
+│   ├── bootstrap-admin.mjs      # Creates the first admin (defaults to admin/admin)
+│   └── reset-admin-password.mjs # Recovery: reset an admin's password directly if locked out
 └── Q1 examples for grading.md   # Sample solutions showing expected scores for Q1
 ```
 
