@@ -5,6 +5,8 @@ A web application for physics courses where students write Python code to solve 
 > **New here?** [`docs/GUIDE.md`](docs/GUIDE.md) is a full walkthrough with screenshots, a zero-to-running install guide, and a line-by-line explanation of how the code works. This README is the quick reference.
 >
 > **Want to skip installing Node/Python/MongoDB/Ollama by hand?** [`docs/DOCKER.md`](docs/DOCKER.md) runs the whole stack — app, database, and the LLM itself — in containers with one `docker compose up`.
+>
+> **Just want the fastest path to a running app, no explanations?** [`docs/QUICKSTART.md`](docs/QUICKSTART.md) (manual setup) or [`docs/QUICKSTART-DOCKER.md`](docs/QUICKSTART-DOCKER.md) (Docker) — first steps only.
 
 ---
 
