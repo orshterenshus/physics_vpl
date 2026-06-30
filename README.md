@@ -171,6 +171,17 @@ PYTHON_CMD=python
 
 > **Note:** Use `127.0.0.1` not `localhost` for `OLLAMA_BASE_URL` — Ollama binds to IPv4 only.
 
+`AUTH_SECRET` just needs to be a long random string — it doesn't need to come from any particular tool. **You do not need `openssl` installed** (it isn't preinstalled on Windows, so `openssl rand -base64 32` will fail with "not recognized" there unless you've set it up separately). Pick whichever is easiest:
+- Just type 40+ random characters yourself — mashing the keyboard works fine.
+- PowerShell (built in on Windows, no install needed):
+  ```powershell
+  $b = New-Object byte[] 32; (New-Object Security.Cryptography.RNGCryptoServiceProvider).GetBytes($b); [Convert]::ToBase64String($b)
+  ```
+- macOS/Linux, or Windows if you do have `openssl`:
+  ```bash
+  openssl rand -base64 32
+  ```
+
 ### 4. Start the development server
 
 ```bash

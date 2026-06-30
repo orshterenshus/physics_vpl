@@ -279,7 +279,13 @@ OLLAMA_MODEL=qwen2.5:14b
 PYTHON_CMD=python
 ```
 
-`AUTH_SECRET` can be any sufficiently random string — generate one with `openssl rand -base64 32`, or just mash the keyboard for 40+ characters. It's used to sign the JWT session cookie.
+`AUTH_SECRET` can be any sufficiently random string — it's used to sign the JWT session cookie, and doesn't need to come from any particular tool. **`openssl` is not required** (and isn't preinstalled on Windows, so `openssl rand -base64 32` will fail with "not recognized" there unless you've installed it separately). Any of these work equally well:
+- Type 40+ random characters yourself.
+- PowerShell (built into Windows, no install needed):
+  ```powershell
+  $b = New-Object byte[] 32; (New-Object Security.Cryptography.RNGCryptoServiceProvider).GetBytes($b); [Convert]::ToBase64String($b)
+  ```
+- `openssl rand -base64 32`, if you do have it (macOS/Linux usually do; Windows usually doesn't by default).
 
 ### Step 7 — Start the dev server
 
