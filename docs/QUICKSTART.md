@@ -19,7 +19,11 @@ cd physics_vpl
 npm install
 ```
 
-Create `.env.local` in the project root:
+Copy the template and fill in your own values:
+
+```bash
+cp .env.local.example .env.local
+```
 
 ```env
 MONGODB_URI=mongodb+srv://<user>:<password>@<cluster>.mongodb.net/<dbname>
