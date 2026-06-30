@@ -22,7 +22,9 @@ export function UserTable({ initialUsers }: { initialUsers: UserWithId[] }) {
     const res = await fetch("/api/admin/users", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
+      body: JSON.stringify(
+        form.role === "admin" ? form : { name: form.name, email: form.email, role: form.role }
+      ),
     });
     if (!res.ok) {
       const err = await res.json();
