@@ -3,6 +3,8 @@
 A web application for physics courses where students write Python code to solve simulation problems. Submissions are automatically graded by a local LLM that evaluates physics correctness, coding quality, and the quality of the student's physical reasoning in their comments.
 
 > **New here?** [`docs/GUIDE.md`](docs/GUIDE.md) is a full walkthrough with screenshots, a zero-to-running install guide, and a line-by-line explanation of how the code works. This README is the quick reference.
+>
+> **Just want the fastest path to a running app, no explanations?** [`docs/QUICKSTART.md`](docs/QUICKSTART.md) — first steps only.
 
 ---
 
